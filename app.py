@@ -84,15 +84,25 @@ div[aria-selected="true"] {
 
 /* Buttons */
 .stButton > button {
-    background-color: #2e7d32;
-    color: white;
-    border-radius: 8px;
-    height: 3em;
-    font-weight: 600;
+    background-color: #2e7d32 !important;
+    color: white !important;
+    border-radius: 10px !important;
+    height: 3em !important;
+    font-weight: 600 !important;
+    border: none !important;
 }
 
+/* Button text (extra force) */
+.stButton > button p,
+.stButton > button span,
+.stButton > button div {
+    color: white !important;
+}
+
+/* Hover */
 .stButton > button:hover {
-    background-color: #145a32;
+    background-color: #145a32 !important;
+    color: white !important;
 }
 
 </style>
@@ -314,6 +324,7 @@ elif st.session_state.screen == "simulate":
         st.session_state.step = 0
         st.session_state.shock_values = {}
         st.rerun()
+
 
 
 
