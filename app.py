@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 
 st.markdown("""
 <style>
+
+/* Main App Background */
 .stApp {
     background-color: #e8f5e9;
 }
@@ -18,16 +20,11 @@ st.markdown("""
 h1 { color: black !important; font-weight: 700; }
 h2, h3 { color: #1b5e20 !important; }
 
-/* General text */
-div, label, p, span {
-    color: black !important;
-}
+/* ----------------------------- */
+/* SELECTBOX COMPLETE OVERRIDE  */
+/* ----------------------------- */
 
-/* ========================= */
-/* SELECTBOX FULL OVERRIDE  */
-/* ========================= */
-
-/* Main select box container */
+/* Selected box */
 div[data-baseweb="select"] > div {
     background-color: transparent !important;
     border: 1px solid #2e7d32 !important;
@@ -38,19 +35,26 @@ div[data-baseweb="select"] span {
     color: white !important;
 }
 
-/* Dropdown menu background */
-ul[role="listbox"] {
-    background-color: #2f2f2f !important;
+/* Dropdown menu container */
+div[role="listbox"] {
+    background-color: #1f1f1f !important;
 }
 
 /* Dropdown option text */
-ul[role="listbox"] li {
+div[role="option"] {
+    color: white !important;
+    background-color: #1f1f1f !important;
+}
+
+/* Hover state */
+div[role="option"]:hover {
+    background-color: #2e7d32 !important;
     color: white !important;
 }
 
-/* Hover effect */
-ul[role="listbox"] li:hover {
-    background-color: #1b5e20 !important;
+/* Selected option highlight */
+div[aria-selected="true"] {
+    background-color: #2e7d32 !important;
     color: white !important;
 }
 
@@ -286,5 +290,6 @@ elif st.session_state.screen == "simulate":
         st.session_state.step = 0
         st.session_state.shock_values = {}
         st.rerun()
+
 
 
