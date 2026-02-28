@@ -5,198 +5,242 @@ import joblib
 import matplotlib.pyplot as plt
 
 # ----------------------------------
-# PAGE CONFIG
+# PAGE CONFIG + CLEAN UI
 # ----------------------------------
 
 st.set_page_config(page_title="AgriMarket Twin", layout="wide")
 
-st.title("🌾 AgriMarket Twin – Smart Yield Simulation Engine")
-st.write("Run Monte Carlo simulations to estimate crop yield under climate and soil uncertainty.")
+st.markdown("""
+<style>
+.stApp { background-color: #e8f5e9; }
+
+h1 { color: black !important; font-weight: 700; }
+h2, h3 { color: #1b5e20 !important; }
+
+div, label, p, span { color: black !important; }
+
+.stButton > button {
+    background-color: #2e7d32;
+    color: white;
+    border-radius: 8px;
+    height: 3em;
+    font-weight: 600;
+}
+.stButton > button:hover {
+    background-color: #1b5e20;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("🌾 AgriMarket Twin – Synthetic Market Simulation Lab")
 
 # ----------------------------------
-# LOAD MODEL + DATA
+# LOAD DATASETS
 # ----------------------------------
 
 pipeline = joblib.load("agri_yield.pkl")
-data = pd.read_csv("crop.csv")
+
+model_data = pd.read_csv("crop.csv")                 # prediction dataset
+region_data = pd.read_csv("Crop_production.csv")     # region context dataset
 
 # ----------------------------------
-# BASE INPUT SECTION
+# SESSION STATE CONTROL
 # ----------------------------------
 
-st.subheader("📍 Base Agricultural Conditions")
+if "screen" not in st.session_state:
+    st.session_state.screen = "context"
 
-col1, col2, col3 = st.columns(3)
+if "step" not in st.session_state:
+    st.session_state.step = 0
 
-with col1:
-    N = st.number_input("Nitrogen (N)", value=90.0)
-    P = st.number_input("Phosphorus (P)", value=40.0)
-    K = st.number_input("Potassium (K)", value=40.0)
-
-with col2:
-    temperature = st.number_input("Temperature (°C)", value=25.0)
-    humidity = st.number_input("Humidity (%)", value=70.0)
-    ph = st.number_input("Soil pH", value=6.5)
-
-with col3:
-    rainfall = st.number_input("Rainfall (mm)", value=200.0)
-    crop = st.selectbox("Crop Type", sorted(data["crop"].unique()))
-    fertilizer = st.selectbox("Fertilizer Type", sorted(data["fertilizer"].unique()))
-
-base_input = pd.DataFrame([{
-    "N": N,
-    "P": P,
-    "K": K,
-    "temperature": temperature,
-    "humidity": humidity,
-    "ph": ph,
-    "rainfall": rainfall,
-    "crop": crop,
-    "fertilizer": fertilizer
-}])
+if "scenario_choices" not in st.session_state:
+    st.session_state.scenario_choices = {}
 
 # ----------------------------------
-# STRUCTURED SCENARIO LEVELS
+# SCENARIO STRUCTURE (625 combinations)
 # ----------------------------------
 
-st.subheader("📊 Climate Stress Levels")
+scenario_structure = {
+    "Rainfall": [-30, -15, 0, 15, 30],       # %
+    "Temperature": [-3, -1, 0, 1, 3],        # °C
+    "Humidity": [-20, -10, 0, 10, 20],       # %
+    "Nitrogen": [-25, -10, 0, 10, 25]        # %
+}
 
-level_map_percent = {1:5, 2:10, 3:15, 4:20, 5:30}
-level_map_temp = {1:1, 2:2, 3:3, 4:4, 5:5}
-
-rainfall_dir = st.selectbox("Rainfall Direction", ["No Change","Increase","Decrease"])
-rainfall_lvl = st.selectbox("Rainfall Level (1-5)", [1,2,3,4,5])
-
-temp_dir = st.selectbox("Temperature Direction", ["No Change","Increase","Decrease"])
-temp_lvl = st.selectbox("Temperature Level (1-5)", [1,2,3,4,5])
-
-humidity_dir = st.selectbox("Humidity Direction", ["No Change","Increase","Decrease"])
-humidity_lvl = st.selectbox("Humidity Level (1-5)", [1,2,3,4,5])
-
-n_dir = st.selectbox("Nitrogen Direction", ["No Change","Increase","Decrease"])
-n_lvl = st.selectbox("Nitrogen Level (1-5)", [1,2,3,4,5])
+variables = list(scenario_structure.keys())
 
 # ----------------------------------
-# AI TOOL TOGGLE
+# SCREEN 1 – MARKET CONTEXT SETUP
 # ----------------------------------
 
-st.subheader("🤖 AI Tool Intervention")
+if st.session_state.screen == "context":
 
-ai_toggle = st.toggle("Enable AI Smart Irrigation Tool")
+    st.subheader("📍 Market Context Setup")
 
-if ai_toggle:
-    ai_boost = st.slider("Expected Yield Boost (%)", 5, 25, 12)
-    tool_cost = st.number_input("AI Tool Cost (₹ per hectare)", value=3000)
-else:
-    ai_boost = 0
-    tool_cost = 0
+    col1, col2 = st.columns(2)
+
+    with col1:
+        state = st.selectbox("Select State",
+                             sorted(region_data["State_Name"].unique()))
+
+    filtered_districts = region_data[
+        region_data["State_Name"] == state
+    ]["District_Name"].unique()
+
+    with col2:
+        district = st.selectbox("Select District",
+                                sorted(filtered_districts))
+
+    filtered_crops = region_data[
+        (region_data["State_Name"] == state) &
+        (region_data["District_Name"] == district)
+    ]["Crop"].unique()
+
+    crop = st.selectbox("Select Crop", sorted(filtered_crops))
+
+    price = st.number_input("Market Price (₹ per kg)", value=20)
+
+    # Historical Baseline Calculation
+    filtered = region_data[
+        (region_data["State_Name"] == state) &
+        (region_data["District_Name"] == district) &
+        (region_data["Crop"] == crop)
+    ]
+
+    avg_production = filtered["Production"].mean()
+    avg_area = filtered["Area"].mean()
+
+    if avg_area and avg_area > 0:
+        baseline_yield = avg_production / avg_area
+        st.info(f"📊 Historical Average Yield: {round(baseline_yield,2)}")
+    else:
+        baseline_yield = 5
+        st.warning("Insufficient historical data. Using default baseline.")
+
+    if st.button("🚀 Start Simulation"):
+
+        st.session_state.state = state
+        st.session_state.district = district
+        st.session_state.crop = crop
+        st.session_state.price = price
+
+        # Base input for model (defaults from model dataset structure)
+        st.session_state.base_input = pd.DataFrame([{
+            "N": 90.0,
+            "P": 40.0,
+            "K": 40.0,
+            "temperature": 25.0,
+            "humidity": 70.0,
+            "ph": 6.5,
+            "rainfall": 200.0,
+            "crop": crop,
+            "fertilizer": model_data["fertilizer"].iloc[0]
+        }])
+
+        st.session_state.screen = "tiles"
+        st.rerun()
 
 # ----------------------------------
-# MONTE CARLO SIMULATION
+# SCREEN 2 – TILE SELECTION FLOW
 # ----------------------------------
 
-def monte_carlo(pipeline, base_input, n_sim=1000):
+elif st.session_state.screen == "tiles":
 
-    results = []
+    st.progress((st.session_state.step + 1) / len(variables))
 
-    for _ in range(n_sim):
+    current_var = variables[st.session_state.step]
+    st.subheader(f"🧩 Select {current_var} Scenario")
 
-        simulated = base_input.copy()
+    options = scenario_structure[current_var]
+    cols = st.columns(5)
 
-        # Structured Scenario Adjustments
+    for i, value in enumerate(options):
 
-        if rainfall_dir != "No Change":
-            percent = level_map_percent[rainfall_lvl] / 100
-            if rainfall_dir == "Increase":
-                simulated["rainfall"] *= (1 + percent)
+        label = f"{value}%" if current_var != "Temperature" else f"{value}°C"
+
+        if cols[i].button(label, key=f"{current_var}_{i}"):
+
+            st.session_state.scenario_choices[current_var] = value
+
+            if st.session_state.step < len(variables) - 1:
+                st.session_state.step += 1
             else:
-                simulated["rainfall"] *= (1 - percent)
+                st.session_state.screen = "simulate"
 
-        if temp_dir != "No Change":
-            change = level_map_temp[temp_lvl]
-            if temp_dir == "Increase":
-                simulated["temperature"] += change
-            else:
-                simulated["temperature"] -= change
-
-        if humidity_dir != "No Change":
-            percent = level_map_percent[humidity_lvl] / 100
-            if humidity_dir == "Increase":
-                simulated["humidity"] *= (1 + percent)
-            else:
-                simulated["humidity"] *= (1 - percent)
-
-        if n_dir != "No Change":
-            percent = level_map_percent[n_lvl] / 100
-            if n_dir == "Increase":
-                simulated["N"] *= (1 + percent)
-            else:
-                simulated["N"] *= (1 - percent)
-
-        # Add Monte Carlo Noise
-        simulated["rainfall"] = np.random.normal(simulated["rainfall"], simulated["rainfall"] * 0.10)
-        simulated["temperature"] = np.random.normal(simulated["temperature"], 1.5)
-        simulated["humidity"] = np.random.normal(simulated["humidity"], simulated["humidity"] * 0.05)
-
-        pred = pipeline.predict(simulated)[0]
-        results.append(pred)
-
-    return np.array(results)
+            st.rerun()
 
 # ----------------------------------
-# RUN SIMULATION
+# SCREEN 3 – RUN SIMULATION
 # ----------------------------------
 
-st.subheader("⚙ Simulation Settings")
+elif st.session_state.screen == "simulate":
 
-simulations = st.selectbox("Number of Simulations", [500,1000,2000])
-price = st.number_input("Market Price (₹ per kg)", value=20)
+    st.subheader("⚙ Simulation Settings")
 
-if st.button("🚀 Run Simulation"):
+    simulations = st.selectbox("Number of Simulations", [500, 1000, 2000])
 
-    results = monte_carlo(pipeline, base_input, simulations)
+    def monte_carlo(n_sim=1000):
 
-    mean_yield = np.mean(results)
-    worst = np.percentile(results,5)
-    best = np.percentile(results,95)
+        results = []
 
-    baseline_revenue = mean_yield * price
+        for _ in range(n_sim):
 
-    st.subheader("📈 Results")
+            simulated = st.session_state.base_input.copy()
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Expected Yield", round(mean_yield,2))
-    col2.metric("Worst Case (5%)", round(worst,2))
-    col3.metric("Best Case (95%)", round(best,2))
+            for var, change in st.session_state.scenario_choices.items():
 
-    st.metric("Expected Revenue (₹)", round(baseline_revenue,2))
+                if var == "Rainfall":
+                    simulated["rainfall"] *= (1 + change/100)
 
-    # AI Comparison
-    if ai_toggle:
-        intervention = results * (1 + ai_boost/100)
-        mean_ai = np.mean(intervention)
-        revenue_ai = mean_ai * price
-        roi = (revenue_ai - baseline_revenue) / tool_cost
+                elif var == "Temperature":
+                    simulated["temperature"] += change
 
-        st.subheader("🤖 AI Tool Impact")
+                elif var == "Humidity":
+                    simulated["humidity"] *= (1 + change/100)
 
-        col4, col5 = st.columns(2)
-        col4.metric("AI Expected Yield", round(mean_ai,2))
-        col5.metric("AI Revenue (₹)", round(revenue_ai,2))
+                elif var == "Nitrogen":
+                    simulated["N"] *= (1 + change/100)
 
-        st.metric("Estimated ROI", round(roi,2))
+            # Add uncertainty
+            simulated["rainfall"] = np.random.normal(simulated["rainfall"], simulated["rainfall"] * 0.10)
+            simulated["temperature"] = np.random.normal(simulated["temperature"], 1.5)
+            simulated["humidity"] = np.random.normal(simulated["humidity"], simulated["humidity"] * 0.05)
 
-    # Plot
-    st.subheader("📊 Yield Distribution")
+            pred = pipeline.predict(simulated)[0]
+            results.append(pred)
 
-    fig, ax = plt.subplots()
-    ax.hist(results, bins=30, alpha=0.6, label="Baseline")
+        return np.array(results)
 
-    if ai_toggle:
-        ax.hist(intervention, bins=30, alpha=0.6, label="AI Tool")
+    if st.button("🚀 Run Simulation"):
 
-    ax.set_xlabel("Predicted Yield")
-    ax.set_ylabel("Frequency")
-    ax.legend()
+        results = monte_carlo(simulations)
 
-    st.pyplot(fig)
+        mean_yield = np.mean(results)
+        worst = np.percentile(results, 5)
+        best = np.percentile(results, 95)
+
+        revenue = mean_yield * st.session_state.price
+
+        st.subheader("📈 Simulation Results")
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Expected Yield", round(mean_yield, 2))
+        col2.metric("Worst Case (5%)", round(worst, 2))
+        col3.metric("Best Case (95%)", round(best, 2))
+
+        st.metric("Expected Revenue (₹)", round(revenue, 2))
+
+        st.subheader("📊 Yield Distribution")
+
+        fig, ax = plt.subplots()
+        ax.hist(results, bins=30, alpha=0.7)
+        ax.set_xlabel("Predicted Yield")
+        ax.set_ylabel("Frequency")
+
+        st.pyplot(fig)
+
+    if st.button("🔄 Reset Simulation"):
+        st.session_state.screen = "context"
+        st.session_state.step = 0
+        st.session_state.scenario_choices = {}
+        st.rerun()
