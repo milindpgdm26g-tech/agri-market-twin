@@ -11,48 +11,56 @@ import matplotlib.pyplot as plt
 st.markdown("""
 <style>
 
-/* Main App Background */
+/* App background */
 .stApp {
     background-color: #e8f5e9;
 }
 
 /* Headings */
-h1 { color: black !important; font-weight: 700; }
+h1 { color: #145a32 !important; font-weight: 700; }
 h2, h3 { color: #1b5e20 !important; }
 
-/* ----------------------------- */
-/* SELECTBOX COMPLETE OVERRIDE  */
-/* ----------------------------- */
+/* Labels */
+label {
+    color: #145a32 !important;
+    font-weight: 600 !important;
+}
+
+/* ========================= */
+/* SELECTBOX FIXED STYLE     */
+/* ========================= */
 
 /* Selected box */
 div[data-baseweb="select"] > div {
-    background-color: transparent !important;
-    border: 1px solid #2e7d32 !important;
+    background-color: #2f2f2f !important;
+    border: 2px solid #2e7d32 !important;
+    border-radius: 8px !important;
 }
 
 /* Selected value text */
 div[data-baseweb="select"] span {
     color: white !important;
+    font-weight: 500 !important;
 }
 
-/* Dropdown menu container */
+/* Dropdown list background */
 div[role="listbox"] {
-    background-color: #1f1f1f !important;
+    background-color: #2f2f2f !important;
 }
 
-/* Dropdown option text */
+/* Dropdown options */
 div[role="option"] {
+    background-color: #2f2f2f !important;
     color: white !important;
-    background-color: #1f1f1f !important;
 }
 
-/* Hover state */
+/* Hover option */
 div[role="option"]:hover {
     background-color: #2e7d32 !important;
     color: white !important;
 }
 
-/* Selected option highlight */
+/* Selected option */
 div[aria-selected="true"] {
     background-color: #2e7d32 !important;
     color: white !important;
@@ -68,7 +76,7 @@ div[aria-selected="true"] {
 }
 
 .stButton > button:hover {
-    background-color: #1b5e20;
+    background-color: #145a32;
 }
 
 </style>
@@ -290,6 +298,7 @@ elif st.session_state.screen == "simulate":
         st.session_state.step = 0
         st.session_state.shock_values = {}
         st.rerun()
+
 
 
 
