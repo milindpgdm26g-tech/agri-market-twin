@@ -5,7 +5,7 @@ import joblib
 import matplotlib.pyplot as plt
 
 # ----------------------------------
-# PAGE CONFIG + CLEAN UI
+# PAGE CONFIG + UI STYLE
 # ----------------------------------
 
 st.set_page_config(page_title="AgriMarket Twin", layout="wide")
@@ -19,6 +19,16 @@ h2, h3 { color: #1b5e20 !important; }
 
 div, label, p, span { color: black !important; }
 
+/* Dropdown styling */
+div[data-baseweb="select"] > div {
+    background-color: #6c757d !important;
+    color: white !important;
+}
+div[data-baseweb="select"] span {
+    color: white !important;
+}
+
+/* Buttons */
 .stButton > button {
     background-color: #2e7d32;
     color: white;
@@ -35,42 +45,14 @@ div, label, p, span { color: black !important; }
 st.title("🌾 AgriMarket Twin – Synthetic Market Simulation Lab")
 
 # ----------------------------------
-# LOAD DATASETS SAFELY
+# LOAD DATA
 # ----------------------------------
 
-@st.cache_data
-def load_region_data():
-    df = pd.read_csv("Crop_production.csv")
-    df.columns = df.columns.str.strip()
-    return df
-
-@st.cache_resource
-def load_model():
-    return joblib.load("agri_yield.pkl")
-
-pipeline = load_model()
+pipeline = joblib.load("agri_yield.pkl")
 model_data = pd.read_csv("crop.csv")
-region_data = load_region_data()
 
 # ----------------------------------
-# AUTO-DETECT IMPORTANT COLUMNS
-# ----------------------------------
-
-def find_column(keyword_list, columns):
-    for col in columns:
-        for key in keyword_list:
-            if key in col.lower():
-                return col
-    return None
-
-state_col = find_column(["state"], region_data.columns)
-crop_col = find_column(["crop"], region_data.columns)
-season_col = find_column(["season"], region_data.columns)
-prod_col = find_column(["prod"], region_data.columns)
-area_col = find_column(["area"], region_data.columns)
-
-# ----------------------------------
-# SESSION STATE CONTROL
+# SESSION CONTROL
 # ----------------------------------
 
 if "screen" not in st.session_state:
@@ -83,7 +65,7 @@ if "scenario_choices" not in st.session_state:
     st.session_state.scenario_choices = {}
 
 # ----------------------------------
-# SCENARIO STRUCTURE (625 combinations)
+# SCENARIO STRUCTURE (625 combos)
 # ----------------------------------
 
 scenario_structure = {
@@ -96,74 +78,52 @@ scenario_structure = {
 variables = list(scenario_structure.keys())
 
 # ----------------------------------
-# SCREEN 1 – MARKET CONTEXT
+# SCREEN 1 – FULL INPUT PAGE
 # ----------------------------------
 
 if st.session_state.screen == "context":
 
-    st.subheader("📍 Market Context Setup")
+    st.subheader("📍 Base Agricultural Inputs")
 
-    if state_col:
-        state = st.selectbox(
-            "Select State",
-            sorted(region_data[state_col].dropna().unique())
-        )
-        filtered = region_data[region_data[state_col] == state]
-    else:
-        st.error("State column not found in dataset.")
-        st.stop()
+    col1, col2, col3 = st.columns(3)
 
-    if crop_col:
-        crop_options = filtered[crop_col].dropna().unique()
-        crop = st.selectbox("Select Crop", sorted(crop_options))
-        filtered = filtered[filtered[crop_col] == crop]
-    else:
-        st.error("Crop column not found in dataset.")
-        st.stop()
+    with col1:
+        N = st.number_input("Nitrogen (N)", value=90.0)
+        P = st.number_input("Phosphorus (P)", value=40.0)
+        K = st.number_input("Potassium (K)", value=40.0)
 
-    if season_col:
-        season_options = filtered[season_col].dropna().unique()
-        season = st.selectbox("Select Season", sorted(season_options))
-        filtered = filtered[filtered[season_col] == season]
+    with col2:
+        temperature = st.number_input("Temperature (°C)", value=25.0)
+        humidity = st.number_input("Humidity (%)", value=70.0)
+        ph = st.number_input("Soil pH", value=6.5)
+
+    with col3:
+        rainfall = st.number_input("Rainfall (mm)", value=200.0)
+        crop = st.selectbox("Crop Type", sorted(model_data["crop"].unique()))
+        fertilizer = st.selectbox("Fertilizer Type", sorted(model_data["fertilizer"].unique()))
 
     price = st.number_input("Market Price (₹ per kg)", value=20)
 
-    # Safe historical yield calculation
-    if prod_col and area_col and not filtered.empty:
-        avg_production = filtered[prod_col].mean()
-        avg_area = filtered[area_col].mean()
-
-        if avg_area and avg_area > 0:
-            baseline_yield = avg_production / avg_area
-            st.success(f"📊 Historical Avg Yield: {round(baseline_yield,2)}")
-        else:
-            st.warning("Area data insufficient. Using default baseline.")
-    else:
-        st.warning("Production/Area columns not found. Skipping baseline.")
-
     if st.button("🚀 Start Simulation"):
 
-        st.session_state.crop = crop
-        st.session_state.price = price
-
-        # Base model input
         st.session_state.base_input = pd.DataFrame([{
-            "N": 90.0,
-            "P": 40.0,
-            "K": 40.0,
-            "temperature": 25.0,
-            "humidity": 70.0,
-            "ph": 6.5,
-            "rainfall": 200.0,
+            "N": N,
+            "P": P,
+            "K": K,
+            "temperature": temperature,
+            "humidity": humidity,
+            "ph": ph,
+            "rainfall": rainfall,
             "crop": crop,
-            "fertilizer": model_data["fertilizer"].iloc[0]
+            "fertilizer": fertilizer
         }])
 
+        st.session_state.price = price
         st.session_state.screen = "tiles"
         st.rerun()
 
 # ----------------------------------
-# SCREEN 2 – TILE SELECTION FLOW
+# SCREEN 2 – TILE FLOW
 # ----------------------------------
 
 elif st.session_state.screen == "tiles":
@@ -223,22 +183,12 @@ elif st.session_state.screen == "simulate":
                 elif var == "Nitrogen":
                     simulated["N"] *= (1 + change/100)
 
-            # Monte Carlo uncertainty
-            simulated["rainfall"] = np.random.normal(
-                simulated["rainfall"], simulated["rainfall"] * 0.10
-            )
-            simulated["temperature"] = np.random.normal(
-                simulated["temperature"], 1.5
-            )
-            simulated["humidity"] = np.random.normal(
-                simulated["humidity"], simulated["humidity"] * 0.05
-            )
+            simulated["rainfall"] = np.random.normal(simulated["rainfall"], simulated["rainfall"] * 0.10)
+            simulated["temperature"] = np.random.normal(simulated["temperature"], 1.5)
+            simulated["humidity"] = np.random.normal(simulated["humidity"], simulated["humidity"] * 0.05)
 
-            try:
-                pred = pipeline.predict(simulated)[0]
-                results.append(pred)
-            except:
-                results.append(0)
+            pred = pipeline.predict(simulated)[0]
+            results.append(pred)
 
         return np.array(results)
 
