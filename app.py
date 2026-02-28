@@ -8,24 +8,53 @@ import matplotlib.pyplot as plt
 # PAGE CONFIG + STYLE
 # ----------------------------------
 
-st.set_page_config(page_title="AgriMarket Twin", layout="wide")
-
 st.markdown("""
 <style>
-.stApp { background-color: #e8f5e9; }
+.stApp {
+    background-color: #e8f5e9;
+}
 
+/* Headings */
 h1 { color: black !important; font-weight: 700; }
 h2, h3 { color: #1b5e20 !important; }
 
-div, label, p, span { color: black !important; }
-
-div[data-baseweb="select"] > div {
-    background-color: #6c757d !important;
+/* General text */
+div, label, p, span {
+    color: black !important;
 }
+
+/* ========================= */
+/* SELECTBOX FULL OVERRIDE  */
+/* ========================= */
+
+/* Main select box container */
+div[data-baseweb="select"] > div {
+    background-color: transparent !important;
+    border: 1px solid #2e7d32 !important;
+}
+
+/* Selected value text */
 div[data-baseweb="select"] span {
     color: white !important;
 }
 
+/* Dropdown menu background */
+ul[role="listbox"] {
+    background-color: #2f2f2f !important;
+}
+
+/* Dropdown option text */
+ul[role="listbox"] li {
+    color: white !important;
+}
+
+/* Hover effect */
+ul[role="listbox"] li:hover {
+    background-color: #1b5e20 !important;
+    color: white !important;
+}
+
+/* Buttons */
 .stButton > button {
     background-color: #2e7d32;
     color: white;
@@ -33,6 +62,11 @@ div[data-baseweb="select"] span {
     height: 3em;
     font-weight: 600;
 }
+
+.stButton > button:hover {
+    background-color: #1b5e20;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -252,4 +286,5 @@ elif st.session_state.screen == "simulate":
         st.session_state.step = 0
         st.session_state.shock_values = {}
         st.rerun()
+
 
