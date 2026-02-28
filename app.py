@@ -239,7 +239,7 @@ elif st.session_state.screen == "tiles":
 
     st.session_state.shock_values["Soil pH"] = st.number_input(
         "Custom Soil pH Change",
-        value=st.session_state.shock_values.get("Soil pH", 0),
+        value=float(st.session_state.shock_values.get("Soil pH", 0.0)),
         step=0.1,
         key="custom_ph"
     )
@@ -316,4 +316,5 @@ elif st.session_state.screen == "comparison":
             "Soil pH": 0
         }
         st.rerun()
+
 
