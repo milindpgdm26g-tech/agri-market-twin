@@ -39,7 +39,7 @@ st.title("🌾 AgriMarket Twin – Synthetic Market Simulation Lab")
 # ----------------------------------
 
 pipeline = joblib.load("agri_yield.pkl")
-data = pd.read_csv("Crop Prediction dataset.csv")
+data = pd.read_csv("crop.csv")
 
 # ----------------------------------
 # SESSION STATE CONTROL
@@ -214,3 +214,4 @@ elif st.session_state.screen == "simulate":
         st.session_state.step = 0
         st.session_state.scenario_choices = {}
         st.rerun()
+
