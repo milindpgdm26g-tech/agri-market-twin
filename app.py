@@ -200,7 +200,7 @@ elif st.session_state.screen == "tiles":
 
     st.session_state.shock_values["Temperature"] = st.number_input(
         "Custom Temperature Change",
-        value=st.session_state.shock_values["Temperature"],
+        value=st.session_state.shock_values.get("Temperature", 0),
         step=1,
         key="custom_temp"
     )
@@ -213,7 +213,7 @@ elif st.session_state.screen == "tiles":
 
     st.session_state.shock_values["Humidity"] = st.number_input(
         "Custom Humidity Change",
-        value=st.session_state.shock_values["Humidity"],
+        value=st.session_state.shock_values.get("Humidity", 0),
         step=1,
         key="custom_hum"
     )
@@ -226,11 +226,11 @@ elif st.session_state.screen == "tiles":
 
     st.session_state.shock_values["Rainfall"] = st.number_input(
         "Custom Rainfall Change",
-        value=st.session_state.shock_values["Rainfall"],
+        value=st.session_state.shock_values.get("Rainfall", 0),
         step=1,
         key="custom_rain"
     )
-
+    
     # pH
     st.markdown("### 🧪 Soil pH Change")
     for i, val in enumerate([-1, -0.5, 0, 0.5, 1]):
@@ -239,7 +239,7 @@ elif st.session_state.screen == "tiles":
 
     st.session_state.shock_values["Soil pH"] = st.number_input(
         "Custom Soil pH Change",
-        value=st.session_state.shock_values["Soil pH"],
+        value=st.session_state.shock_values.get("Soil pH", 0),
         step=0.1,
         key="custom_ph"
     )
@@ -316,3 +316,4 @@ elif st.session_state.screen == "comparison":
             "Soil pH": 0
         }
         st.rerun()
+
