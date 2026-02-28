@@ -217,52 +217,82 @@ elif st.session_state.screen == "baseline_result":
         st.rerun()
 
 # ----------------------------------
-# STEP 3 – TILE FLOW (UNCHANGED)
+# STEP 3 – SCENARIO SELECTION (SINGLE PAGE)
 # ----------------------------------
 
 elif st.session_state.screen == "tiles":
 
-    variables = ["Temperature", "Humidity", "Rainfall", "Soil pH"]
+    st.subheader("🧩 Scenario Selection")
 
-    scenario_map = {
-        "Temperature": [-3, -1, 0, 1, 3],
-        "Humidity": [-20, -10, 0, 10, 20],
-        "Rainfall": [-30, -15, 0, 15, 30],
-        "Soil pH": [-1, -0.5, 0, 0.5, 1]
-    }
+    st.markdown("Select predefined scenario OR enter custom value (step = 1).")
 
-    unit_map = {
-        "Temperature": "°C",
-        "Humidity": "%",
-        "Rainfall": "%",
-        "Soil pH": "pH units"
-    }
+    # ---------- TEMPERATURE ----------
+    st.markdown("### 🌡 Temperature Change (°C)")
+    temp_options = [-3, -1, 0, 1, 3]
+    temp_cols = st.columns(5)
 
-    current_var = variables[st.session_state.step]
-    st.subheader(f"🧩 Select {current_var} Scenario")
+    for i, val in enumerate(temp_options):
+        if temp_cols[i].button(f"{val} °C"):
+            st.session_state.shock_values["Temperature"] = val
 
-    options = scenario_map[current_var]
-    cols = st.columns(5)
+    custom_temp = st.number_input(
+        "Custom Temperature Change (°C)",
+        value=st.session_state.shock_values.get("Temperature", 0),
+        step=1
+    )
 
-    for i, value in enumerate(options):
-        unit = unit_map[current_var]
-        label = f"{value} {unit}" if unit != "%" else f"{value}%"
+    st.session_state.shock_values["Temperature"] = custom_temp
 
-        if cols[i].button(label):
-            st.session_state.shock_values[current_var] = value
+    # ---------- HUMIDITY ----------
+    st.markdown("### 💧 Humidity Change (%)")
+    hum_options = [-20, -10, 0, 10, 20]
+    hum_cols = st.columns(5)
 
-    if current_var in st.session_state.shock_values:
-        st.info(f"Selected Change: {st.session_state.shock_values[current_var]} {unit_map[current_var]}")
+    for i, val in enumerate(hum_options):
+        if hum_cols[i].button(f"{val}%"):
+            st.session_state.shock_values["Humidity"] = val
 
-    if st.button("Next ➡"):
-        if current_var not in st.session_state.shock_values:
-            st.warning("Select a scenario first.")
-        else:
-            if st.session_state.step < len(variables) - 1:
-                st.session_state.step += 1
-            else:
-                st.session_state.screen = "simulate"
-            st.rerun()
+    custom_hum = st.number_input(
+        "Custom Humidity Change (%)",
+        value=st.session_state.shock_values.get("Humidity", 0),
+        step=1
+    )
+
+    st.session_state.shock_values["Humidity"] = custom_hum
+
+    # ---------- RAINFALL ----------
+    st.markdown("### 🌧 Rainfall Change (%)")
+    rain_options = [-30, -15, 0, 15, 30]
+    rain_cols = st.columns(5)
+
+    for i, val in enumerate(rain_options):
+        if rain_cols[i].button(f"{val}%"):
+            st.session_state.shock_values["Rainfall"] = val
+
+    custom_rain = st.number_input(
+        "Custom Rainfall Change (%)",
+        value=st.session_state.shock_values.get("Rainfall", 0),
+        step=1
+    )
+
+    st.session_state.shock_values["Rainfall"] = custom_rain
+
+    # ---------- SOIL PH ----------
+    st.markdown("### 🧪 Soil pH Change")
+    ph_options = [-1, -0.5, 0, 0.5, 1]
+    ph_cols = st.columns(5)
+
+    for i, val in enumerate(ph_options):
+        if ph_cols[i].button(f"{val} pH"):
+            st.session_state.shock_values["Soil pH"] = val
+
+    custom_ph = st.number_input(
+        "Custom Soil pH Change",
+        value=st.session_state.shock_values.get("Soil pH", 0),
+        step=0.1
+    )
+
+    st.session_state.shock_values["Soil pH"] = custom_ph
 
 # ----------------------------------
 # STEP 4 – SIMULATION
@@ -333,3 +363,4 @@ elif st.session_state.screen == "comparison":
         st.session_state.step = 0
         st.session_state.shock_values = {}
         st.rerun()
+
