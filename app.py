@@ -104,15 +104,20 @@ if st.session_state.screen == "context":
     else:
         temperature, humidity, rainfall = 25, 70, 200
 
-    st.success("Baseline auto-loaded. Editable below.")
+    st.subheader("🌱 Baseline Conditions (Editable)")
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
+        N = st.number_input("Nitrogen (N)", value=N, step=1)
+        P = st.number_input("Phosphorus (P)", value=P, step=1)
+        K = st.number_input("Potassium (K)", value=K, step=1)
+
+    with col2:
         temperature = st.number_input("Temperature (°C)", value=temperature, step=1)
         humidity = st.number_input("Humidity (%)", value=humidity, step=1)
 
-    with col2:
+    with col3:
         rainfall = st.number_input("Rainfall (mm)", value=rainfall, step=1)
         ph = st.number_input("Soil pH", value=ph, step=0.1)
 
@@ -247,3 +252,4 @@ elif st.session_state.screen == "simulate":
         st.session_state.step = 0
         st.session_state.shock_values = {}
         st.rerun()
+
