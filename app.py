@@ -12,23 +12,13 @@ st.set_page_config(page_title="AgriMarket Twin", layout="wide")
 
 st.markdown("""
 <style>
+.stApp { background-color: #e8f5e9; }
 
-/* App background */
-.stApp {
-    background-color: #e8f5e9;
-}
-
-/* Headings */
 h1 { color: #145a32 !important; font-weight: 700; }
 h2, h3 { color: #1b5e20 !important; }
 
-/* Labels */
-label {
-    color: #145a32 !important;
-    font-weight: 600 !important;
-}
+label { color: #145a32 !important; font-weight: 600 !important; }
 
-/* Metric styling */
 div[data-testid="stMetricLabel"] {
     color: #145a32 !important;
     font-weight: 600 !important;
@@ -40,31 +30,18 @@ div[data-testid="stMetricValue"] {
     font-weight: 700 !important;
 }
 
-/* Selectbox */
 div[data-baseweb="select"] > div {
     background-color: #2f2f2f !important;
     border: 2px solid #2e7d32 !important;
     border-radius: 8px !important;
 }
 
-div[data-baseweb="select"] span {
-    color: white !important;
-}
+div[data-baseweb="select"] span { color: white !important; }
 
-div[role="listbox"] {
-    background-color: #2f2f2f !important;
-}
+div[role="listbox"] { background-color: #2f2f2f !important; }
+div[role="option"] { background-color: #2f2f2f !important; color: white !important; }
+div[role="option"]:hover { background-color: #2e7d32 !important; }
 
-div[role="option"] {
-    background-color: #2f2f2f !important;
-    color: white !important;
-}
-
-div[role="option"]:hover {
-    background-color: #2e7d32 !important;
-}
-
-/* Buttons */
 .stButton > button {
     background-color: #2e7d32 !important;
     color: white !important;
@@ -73,14 +50,8 @@ div[role="option"]:hover {
     font-weight: 600 !important;
 }
 
-.stButton > button * {
-    color: white !important;
-}
-
-.stButton > button:hover {
-    background-color: #145a32 !important;
-}
-
+.stButton > button * { color: white !important; }
+.stButton > button:hover { background-color: #145a32 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -99,20 +70,22 @@ soil_data.columns = soil_data.columns.str.strip()
 weather_data.columns = weather_data.columns.str.strip()
 
 # ----------------------------------
-# SESSION STATE
+# SESSION STATE INIT
 # ----------------------------------
 
 if "screen" not in st.session_state:
     st.session_state.screen = "context"
 
-if "step" not in st.session_state:
-    st.session_state.step = 0
-
 if "shock_values" not in st.session_state:
-    st.session_state.shock_values = {}
+    st.session_state.shock_values = {
+        "Temperature": 0,
+        "Humidity": 0,
+        "Rainfall": 0,
+        "Soil pH": 0
+    }
 
 # ----------------------------------
-# STEP 1 – INPUT + BASELINE PREDICTION
+# STEP 1 – BASELINE INPUT
 # ----------------------------------
 
 if st.session_state.screen == "context":
@@ -168,12 +141,10 @@ if st.session_state.screen == "context":
         rainfall = st.number_input("Rainfall (mm)", value=rainfall, step=1)
         ph = st.number_input("Soil pH", value=ph, step=0.1)
 
-    if st.button("📊 Predict Baseline Yield"):
+    if st.button("📊 Predict Baseline Yield", key="baseline_btn"):
 
         base_input = pd.DataFrame([{
-            "N": N,
-            "P": P,
-            "K": K,
+            "N": N, "P": P, "K": K,
             "temperature": temperature,
             "humidity": humidity,
             "ph": ph,
@@ -186,15 +157,15 @@ if st.session_state.screen == "context":
 
         st.session_state.base_input = base_input
         st.session_state.baseline_yield = baseline_yield
+        st.session_state.baseline_revenue = baseline_yield * area * price
         st.session_state.area = area
         st.session_state.price = price
-        st.session_state.baseline_revenue = baseline_yield * area * price
 
         st.session_state.screen = "baseline_result"
         st.rerun()
 
 # ----------------------------------
-# STEP 2 – SHOW BASELINE RESULT
+# STEP 2 – BASELINE RESULT
 # ----------------------------------
 
 elif st.session_state.screen == "baseline_result":
@@ -203,99 +174,82 @@ elif st.session_state.screen == "baseline_result":
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric("Baseline Yield (per hectare)",
-                round(st.session_state.baseline_yield,2))
-
+    col1.metric("Baseline Yield", round(st.session_state.baseline_yield, 2))
     col2.metric("Baseline Production",
-                round(st.session_state.baseline_yield * st.session_state.area,2))
-
+                round(st.session_state.baseline_yield * st.session_state.area, 2))
     col3.metric("Baseline Revenue (₹)",
-                round(st.session_state.baseline_revenue,2))
+                round(st.session_state.baseline_revenue, 2))
 
-    if st.button("🚀 Proceed to Scenario Simulation"):
+    if st.button("🚀 Proceed to Scenario Simulation", key="to_tiles"):
         st.session_state.screen = "tiles"
         st.rerun()
 
 # ----------------------------------
-# STEP 3 – SCENARIO SELECTION (SINGLE PAGE)
+# STEP 3 – SCENARIO SELECTION
 # ----------------------------------
 
 elif st.session_state.screen == "tiles":
 
     st.subheader("🧩 Scenario Selection")
 
-    st.markdown("Select predefined scenario OR enter custom value (step = 1).")
-
-    # ---------- TEMPERATURE ----------
+    # Temperature
     st.markdown("### 🌡 Temperature Change (°C)")
-    temp_options = [-3, -1, 0, 1, 3]
-    temp_cols = st.columns(5)
-
-    for i, val in enumerate(temp_options):
-        if temp_cols[i].button(f"{val} °C"):
+    for i, val in enumerate([-3, -1, 0, 1, 3]):
+        if st.button(f"{val} °C", key=f"temp_{i}"):
             st.session_state.shock_values["Temperature"] = val
 
-    custom_temp = st.number_input(
-        "Custom Temperature Change (°C)",
-        value=st.session_state.shock_values.get("Temperature", 0),
-        step=1
+    st.session_state.shock_values["Temperature"] = st.number_input(
+        "Custom Temperature Change",
+        value=st.session_state.shock_values["Temperature"],
+        step=1,
+        key="custom_temp"
     )
 
-    st.session_state.shock_values["Temperature"] = custom_temp
-
-    # ---------- HUMIDITY ----------
+    # Humidity
     st.markdown("### 💧 Humidity Change (%)")
-    hum_options = [-20, -10, 0, 10, 20]
-    hum_cols = st.columns(5)
-
-    for i, val in enumerate(hum_options):
-        if hum_cols[i].button(f"{val}%"):
+    for i, val in enumerate([-20, -10, 0, 10, 20]):
+        if st.button(f"{val}%", key=f"hum_{i}"):
             st.session_state.shock_values["Humidity"] = val
 
-    custom_hum = st.number_input(
-        "Custom Humidity Change (%)",
-        value=st.session_state.shock_values.get("Humidity", 0),
-        step=1
+    st.session_state.shock_values["Humidity"] = st.number_input(
+        "Custom Humidity Change",
+        value=st.session_state.shock_values["Humidity"],
+        step=1,
+        key="custom_hum"
     )
 
-    st.session_state.shock_values["Humidity"] = custom_hum
-
-    # ---------- RAINFALL ----------
+    # Rainfall
     st.markdown("### 🌧 Rainfall Change (%)")
-    rain_options = [-30, -15, 0, 15, 30]
-    rain_cols = st.columns(5)
-
-    for i, val in enumerate(rain_options):
-        if rain_cols[i].button(f"{val}%"):
+    for i, val in enumerate([-30, -15, 0, 15, 30]):
+        if st.button(f"{val}%", key=f"rain_{i}"):
             st.session_state.shock_values["Rainfall"] = val
 
-    custom_rain = st.number_input(
-        "Custom Rainfall Change (%)",
-        value=st.session_state.shock_values.get("Rainfall", 0),
-        step=1
+    st.session_state.shock_values["Rainfall"] = st.number_input(
+        "Custom Rainfall Change",
+        value=st.session_state.shock_values["Rainfall"],
+        step=1,
+        key="custom_rain"
     )
 
-    st.session_state.shock_values["Rainfall"] = custom_rain
-
-    # ---------- SOIL PH ----------
+    # pH
     st.markdown("### 🧪 Soil pH Change")
-    ph_options = [-1, -0.5, 0, 0.5, 1]
-    ph_cols = st.columns(5)
-
-    for i, val in enumerate(ph_options):
-        if ph_cols[i].button(f"{val} pH"):
+    for i, val in enumerate([-1, -0.5, 0, 0.5, 1]):
+        if st.button(f"{val} pH", key=f"ph_{i}"):
             st.session_state.shock_values["Soil pH"] = val
 
-    custom_ph = st.number_input(
+    st.session_state.shock_values["Soil pH"] = st.number_input(
         "Custom Soil pH Change",
-        value=st.session_state.shock_values.get("Soil pH", 0),
-        step=0.1
+        value=st.session_state.shock_values["Soil pH"],
+        step=0.1,
+        key="custom_ph"
     )
 
-    st.session_state.shock_values["Soil pH"] = custom_ph
+    if st.button("🚀 Run Monte Carlo Simulation (1000 runs)", key="run_sim"):
+        st.session_state.screen = "simulate"
+        st.rerun()
 
 # ----------------------------------
-# STEP 4 – SIMULATION
+# STEP 4 – SIMULATION (1000 RUNS)
 # ----------------------------------
 
 elif st.session_state.screen == "simulate":
@@ -308,29 +262,27 @@ elif st.session_state.screen == "simulate":
         simulated = st.session_state.base_input.copy()
 
         simulated["temperature"] += st.session_state.shock_values["Temperature"]
-        simulated["humidity"] *= (1 + st.session_state.shock_values["Humidity"]/100)
-        simulated["rainfall"] *= (1 + st.session_state.shock_values["Rainfall"]/100)
+        simulated["humidity"] *= (1 + st.session_state.shock_values["Humidity"] / 100)
+        simulated["rainfall"] *= (1 + st.session_state.shock_values["Rainfall"] / 100)
         simulated["ph"] += st.session_state.shock_values["Soil pH"]
 
         pred = pipeline.predict(simulated)[0]
         results.append(pred)
 
-    results = np.array(results)
-
     mean_yield = np.mean(results)
-    total_revenue = mean_yield * st.session_state.area * st.session_state.price
+    simulated_revenue = mean_yield * st.session_state.area * st.session_state.price
 
     st.session_state.simulated_yield = mean_yield
-    st.session_state.simulated_revenue = total_revenue
+    st.session_state.simulated_revenue = simulated_revenue
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("Simulated Yield", round(mean_yield,2))
+    col1.metric("Simulated Yield", round(mean_yield, 2))
     col2.metric("Simulated Production",
-                round(mean_yield * st.session_state.area,2))
+                round(mean_yield * st.session_state.area, 2))
     col3.metric("Simulated Revenue (₹)",
-                round(total_revenue,2))
+                round(simulated_revenue, 2))
 
-    if st.button("📈 View Comparison"):
+    if st.button("📈 View Comparison", key="compare"):
         st.session_state.screen = "comparison"
         st.rerun()
 
@@ -345,22 +297,22 @@ elif st.session_state.screen == "comparison":
     yield_change = st.session_state.simulated_yield - st.session_state.baseline_yield
     revenue_change = st.session_state.simulated_revenue - st.session_state.baseline_revenue
 
-    yield_percent = (yield_change / st.session_state.baseline_yield) * 100
-    revenue_percent = (revenue_change / st.session_state.baseline_revenue) * 100
-
     col1, col2 = st.columns(2)
 
     col1.metric("Yield Change",
-                f"{round(st.session_state.simulated_yield,2)}",
-                f"{round(yield_change,2)} ({round(yield_percent,2)}%)")
+                round(st.session_state.simulated_yield, 2),
+                round(yield_change, 2))
 
     col2.metric("Revenue Change (₹)",
-                f"{round(st.session_state.simulated_revenue,2)}",
-                f"{round(revenue_change,2)} ({round(revenue_percent,2)}%)")
+                round(st.session_state.simulated_revenue, 2),
+                round(revenue_change, 2))
 
-    if st.button("🔄 Restart Simulation"):
+    if st.button("🔄 Restart Simulation", key="restart"):
         st.session_state.screen = "context"
-        st.session_state.step = 0
-        st.session_state.shock_values = {}
+        st.session_state.shock_values = {
+            "Temperature": 0,
+            "Humidity": 0,
+            "Rainfall": 0,
+            "Soil pH": 0
+        }
         st.rerun()
-
