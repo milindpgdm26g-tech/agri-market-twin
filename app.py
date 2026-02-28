@@ -192,62 +192,91 @@ elif st.session_state.screen == "tiles":
 
     st.subheader("🧩 Scenario Selection")
 
-    # Temperature
+    # ---------------- TEMPERATURE ----------------
     st.markdown("### 🌡 Temperature Change (°C)")
-    for i, val in enumerate([-3, -1, 0, 1, 3]):
-        if st.button(f"{val} °C", key=f"temp_{i}"):
+
+    temp_options = [-3, -1, 0, 1, 3]
+    cols = st.columns(5)
+
+    for i, val in enumerate(temp_options):
+        if cols[i].button(f"{val} °C", key=f"temp_{i}"):
             st.session_state.shock_values["Temperature"] = val
 
-    st.session_state.shock_values["Temperature"] = st.number_input(
+    temp_custom = st.number_input(
         "Custom Temperature Change",
-        value=st.session_state.shock_values.get("Temperature", 0),
+        value=int(st.session_state.shock_values.get("Temperature", 0)),
         step=1,
         key="custom_temp"
     )
 
-    # Humidity
+    st.session_state.shock_values["Temperature"] = temp_custom
+    st.success(f"Selected Temperature Change: {temp_custom} °C")
+
+    # ---------------- HUMIDITY ----------------
     st.markdown("### 💧 Humidity Change (%)")
-    for i, val in enumerate([-20, -10, 0, 10, 20]):
-        if st.button(f"{val}%", key=f"hum_{i}"):
+
+    hum_options = [-20, -10, 0, 10, 20]
+    cols = st.columns(5)
+
+    for i, val in enumerate(hum_options):
+        if cols[i].button(f"{val}%", key=f"hum_{i}"):
             st.session_state.shock_values["Humidity"] = val
 
-    st.session_state.shock_values["Humidity"] = st.number_input(
+    hum_custom = st.number_input(
         "Custom Humidity Change",
-        value=st.session_state.shock_values.get("Humidity", 0),
+        value=int(st.session_state.shock_values.get("Humidity", 0)),
         step=1,
         key="custom_hum"
     )
 
-    # Rainfall
+    st.session_state.shock_values["Humidity"] = hum_custom
+    st.success(f"Selected Humidity Change: {hum_custom} %")
+
+    # ---------------- RAINFALL ----------------
     st.markdown("### 🌧 Rainfall Change (%)")
-    for i, val in enumerate([-30, -15, 0, 15, 30]):
-        if st.button(f"{val}%", key=f"rain_{i}"):
+
+    rain_options = [-30, -15, 0, 15, 30]
+    cols = st.columns(5)
+
+    for i, val in enumerate(rain_options):
+        if cols[i].button(f"{val}%", key=f"rain_{i}"):
             st.session_state.shock_values["Rainfall"] = val
 
-    st.session_state.shock_values["Rainfall"] = st.number_input(
+    rain_custom = st.number_input(
         "Custom Rainfall Change",
-        value=st.session_state.shock_values.get("Rainfall", 0),
+        value=int(st.session_state.shock_values.get("Rainfall", 0)),
         step=1,
         key="custom_rain"
     )
-    
-    # pH
+
+    st.session_state.shock_values["Rainfall"] = rain_custom
+    st.success(f"Selected Rainfall Change: {rain_custom} %")
+
+    # ---------------- SOIL PH ----------------
     st.markdown("### 🧪 Soil pH Change")
-    for i, val in enumerate([-1, -0.5, 0, 0.5, 1]):
-        if st.button(f"{val} pH", key=f"ph_{i}"):
+
+    ph_options = [-1, -0.5, 0, 0.5, 1]
+    cols = st.columns(5)
+
+    for i, val in enumerate(ph_options):
+        if cols[i].button(f"{val} pH", key=f"ph_{i}"):
             st.session_state.shock_values["Soil pH"] = val
 
-    st.session_state.shock_values["Soil pH"] = st.number_input(
+    ph_custom = st.number_input(
         "Custom Soil pH Change",
         value=float(st.session_state.shock_values.get("Soil pH", 0.0)),
         step=0.1,
         key="custom_ph"
     )
 
+    st.session_state.shock_values["Soil pH"] = ph_custom
+    st.success(f"Selected Soil pH Change: {ph_custom}")
+
+    # RUN SIMULATION
     if st.button("🚀 Run Monte Carlo Simulation (1000 runs)", key="run_sim"):
         st.session_state.screen = "simulate"
         st.rerun()
-
+        
 # ----------------------------------
 # STEP 4 – SIMULATION (1000 RUNS)
 # ----------------------------------
@@ -294,18 +323,28 @@ elif st.session_state.screen == "comparison":
 
     st.subheader("📊 Baseline vs Scenario Comparison")
 
-    yield_change = st.session_state.simulated_yield - st.session_state.baseline_yield
-    revenue_change = st.session_state.simulated_revenue - st.session_state.baseline_revenue
+    baseline_yield = st.session_state.baseline_yield
+    simulated_yield = st.session_state.simulated_yield
 
-    col1, col2 = st.columns(2)
+    baseline_revenue = st.session_state.baseline_revenue
+    simulated_revenue = st.session_state.simulated_revenue
 
-    col1.metric("Yield Change",
-                round(st.session_state.simulated_yield, 2),
-                round(yield_change, 2))
+    yield_change = simulated_yield - baseline_yield
+    revenue_change = simulated_revenue - baseline_revenue
 
-    col2.metric("Revenue Change (₹)",
-                round(st.session_state.simulated_revenue, 2),
-                round(revenue_change, 2))
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric("Baseline Yield", round(baseline_yield,2))
+    col2.metric("Simulated Yield", round(simulated_yield,2))
+    col3.metric("Yield Change", round(yield_change,2))
+
+    st.divider()
+
+    col4, col5, col6 = st.columns(3)
+
+    col4.metric("Baseline Revenue (₹)", round(baseline_revenue,2))
+    col5.metric("Simulated Revenue (₹)", round(simulated_revenue,2))
+    col6.metric("Revenue Change (₹)", round(revenue_change,2))
 
     if st.button("🔄 Restart Simulation", key="restart"):
         st.session_state.screen = "context"
@@ -316,5 +355,6 @@ elif st.session_state.screen == "comparison":
             "Soil pH": 0
         }
         st.rerun()
+
 
 
