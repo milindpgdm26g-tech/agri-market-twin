@@ -40,8 +40,9 @@ st.title("🌾 AgriMarket Twin – Synthetic Market Simulation Lab")
 
 pipeline = joblib.load("agri_yield.pkl")
 
-model_data = pd.read_csv("crop.csv")                 # prediction dataset
-region_data = pd.read_csv("Crop_production.csv")     # region context dataset
+model_data = pd.read_csv("crop.csv")                  # prediction dataset
+region_data = pd.read_csv("Crop_production.csv")      # context dataset
+region_data.columns = region_data.columns.str.strip() # remove hidden spaces
 
 # ----------------------------------
 # SESSION STATE CONTROL
@@ -57,62 +58,67 @@ if "scenario_choices" not in st.session_state:
     st.session_state.scenario_choices = {}
 
 # ----------------------------------
-# SCENARIO STRUCTURE (625 combinations)
+# SCENARIO STRUCTURE (5 options each)
+# Total combinations = 5^4 = 625
 # ----------------------------------
 
 scenario_structure = {
-    "Rainfall": [-30, -15, 0, 15, 30],       # %
-    "Temperature": [-3, -1, 0, 1, 3],        # °C
-    "Humidity": [-20, -10, 0, 10, 20],       # %
-    "Nitrogen": [-25, -10, 0, 10, 25]        # %
+    "Rainfall": [-30, -15, 0, 15, 30],      # %
+    "Temperature": [-3, -1, 0, 1, 3],       # °C
+    "Humidity": [-20, -10, 0, 10, 20],      # %
+    "Nitrogen": [-25, -10, 0, 10, 25]       # %
 }
 
 variables = list(scenario_structure.keys())
 
 # ----------------------------------
-# SCREEN 1 – MARKET CONTEXT SETUP
+# SCREEN 1 – MARKET CONTEXT
 # ----------------------------------
 
 if st.session_state.screen == "context":
 
     st.subheader("📍 Market Context Setup")
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        state = st.selectbox("Select State",
-                             sorted(region_data["State_Name"].unique()))
-
-    filtered_districts = region_data[
-        region_data["State_Name"] == state
-    ]["District_Name"].unique()
-
-    with col2:
-        district = st.selectbox("Select District",
-                                sorted(filtered_districts))
+    state = st.selectbox(
+        "Select State",
+        sorted(region_data["State_Name"].unique())
+    )
 
     filtered_crops = region_data[
-        (region_data["State_Name"] == state) &
-        (region_data["District_Name"] == district)
+        region_data["State_Name"] == state
     ]["Crop"].unique()
 
     crop = st.selectbox("Select Crop", sorted(filtered_crops))
 
+    # Optional season if exists
+    if "Season" in region_data.columns:
+        filtered_seasons = region_data[
+            (region_data["State_Name"] == state) &
+            (region_data["Crop"] == crop)
+        ]["Season"].unique()
+
+        season = st.selectbox("Select Season", sorted(filtered_seasons))
+
+        filtered = region_data[
+            (region_data["State_Name"] == state) &
+            (region_data["Crop"] == crop) &
+            (region_data["Season"] == season)
+        ]
+    else:
+        filtered = region_data[
+            (region_data["State_Name"] == state) &
+            (region_data["Crop"] == crop)
+        ]
+
     price = st.number_input("Market Price (₹ per kg)", value=20)
 
-    # Historical Baseline Calculation
-    filtered = region_data[
-        (region_data["State_Name"] == state) &
-        (region_data["District_Name"] == district) &
-        (region_data["Crop"] == crop)
-    ]
-
+    # Historical baseline yield
     avg_production = filtered["Production"].mean()
     avg_area = filtered["Area"].mean()
 
     if avg_area and avg_area > 0:
         baseline_yield = avg_production / avg_area
-        st.info(f"📊 Historical Average Yield: {round(baseline_yield,2)}")
+        st.success(f"📊 Historical Avg Yield: {round(baseline_yield,2)}")
     else:
         baseline_yield = 5
         st.warning("Insufficient historical data. Using default baseline.")
@@ -120,11 +126,10 @@ if st.session_state.screen == "context":
     if st.button("🚀 Start Simulation"):
 
         st.session_state.state = state
-        st.session_state.district = district
         st.session_state.crop = crop
         st.session_state.price = price
 
-        # Base input for model (defaults from model dataset structure)
+        # Base model input (independent of region dataset structure)
         st.session_state.base_input = pd.DataFrame([{
             "N": 90.0,
             "P": 40.0,
@@ -201,10 +206,16 @@ elif st.session_state.screen == "simulate":
                 elif var == "Nitrogen":
                     simulated["N"] *= (1 + change/100)
 
-            # Add uncertainty
-            simulated["rainfall"] = np.random.normal(simulated["rainfall"], simulated["rainfall"] * 0.10)
-            simulated["temperature"] = np.random.normal(simulated["temperature"], 1.5)
-            simulated["humidity"] = np.random.normal(simulated["humidity"], simulated["humidity"] * 0.05)
+            # Monte Carlo noise
+            simulated["rainfall"] = np.random.normal(
+                simulated["rainfall"], simulated["rainfall"] * 0.10
+            )
+            simulated["temperature"] = np.random.normal(
+                simulated["temperature"], 1.5
+            )
+            simulated["humidity"] = np.random.normal(
+                simulated["humidity"], simulated["humidity"] * 0.05
+            )
 
             pred = pipeline.predict(simulated)[0]
             results.append(pred)
