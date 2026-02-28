@@ -19,7 +19,6 @@ h2, h3 { color: #1b5e20 !important; }
 
 div, label, p, span { color: black !important; }
 
-/* Dropdown styling */
 div[data-baseweb="select"] > div {
     background-color: #6c757d !important;
 }
@@ -27,16 +26,12 @@ div[data-baseweb="select"] span {
     color: white !important;
 }
 
-/* Buttons */
 .stButton > button {
     background-color: #2e7d32;
     color: white;
     border-radius: 8px;
     height: 3em;
     font-weight: 600;
-}
-.stButton > button:hover {
-    background-color: #1b5e20;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -98,14 +93,14 @@ if st.session_state.screen == "context":
         N = int(soil_filtered["N"].mean())
         P = int(soil_filtered["P"].mean())
         K = int(soil_filtered["K"].mean())
-        ph = float(round(soil_filtered["ph"].mean(), 1))
+        ph = float(round(soil_filtered["pH"].mean(), 1))   # FIXED
     else:
         N, P, K, ph = 90, 40, 40, 6.5
 
     if not weather_filtered.empty:
-        temperature = int(weather_filtered["temperature"].mean())
-        humidity = int(weather_filtered["humidity"].mean())
-        rainfall = int(weather_filtered["rainfall"].mean())
+        temperature = int(weather_filtered["Temperature"].mean())   # FIXED
+        humidity = int(weather_filtered["Humidity"].mean())         # FIXED
+        rainfall = int(weather_filtered["Rainfall"].mean())         # FIXED
     else:
         temperature, humidity, rainfall = 25, 70, 200
 
