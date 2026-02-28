@@ -5,218 +5,212 @@ import joblib
 import matplotlib.pyplot as plt
 
 # ----------------------------------
-# PAGE CONFIG + LIGHT GREEN THEME
+# PAGE CONFIG + CLEAN GREEN UI
 # ----------------------------------
 
 st.set_page_config(page_title="AgriMarket Twin", layout="wide")
 
 st.markdown("""
 <style>
-.stApp {
-    background-color: #e8f5e9;
-}
-h1, h2, h3 {
-    color: #1b5e20;
-}
-.stButton>button {
-    background-color: #66bb6a;
+.stApp { background-color: #e8f5e9; }
+
+h1 { color: black !important; font-weight: 700; }
+h2, h3 { color: #1b5e20 !important; }
+
+div, label, p, span { color: black !important; }
+
+.stButton > button {
+    background-color: #2e7d32;
     color: white;
     border-radius: 8px;
     height: 3em;
-    width: 100%;
+    font-weight: 600;
+}
+.stButton > button:hover {
+    background-color: #1b5e20;
 }
 </style>
 """, unsafe_allow_html=True)
 
 st.title("🌾 AgriMarket Twin – Synthetic Market Simulation Lab")
-st.write("Step-by-step yield simulation under climate & soil uncertainty.")
 
 # ----------------------------------
 # LOAD MODEL + DATA
 # ----------------------------------
 
 pipeline = joblib.load("agri_yield.pkl")
-data = pd.read_csv("crop.csv")
+data = pd.read_csv("Crop Prediction dataset.csv")
 
 # ----------------------------------
-# SESSION STATE FOR SURVEY FLOW
+# SESSION STATE CONTROL
 # ----------------------------------
 
-variables = [
-    "Nitrogen (N)",
-    "Phosphorus (P)",
-    "Potassium (K)",
-    "Temperature",
-    "Humidity",
-    "Soil pH",
-    "Rainfall"
-]
+if "screen" not in st.session_state:
+    st.session_state.screen = "context"
 
 if "step" not in st.session_state:
     st.session_state.step = 0
 
-if "responses" not in st.session_state:
-    st.session_state.responses = {}
-
-# Progress bar
-st.progress((st.session_state.step + 1) / len(variables))
+if "scenario_choices" not in st.session_state:
+    st.session_state.scenario_choices = {}
 
 # ----------------------------------
-# SURVEY INPUT FLOW
+# SCENARIO STRUCTURE (5 options each)
 # ----------------------------------
 
-current_var = variables[st.session_state.step]
-st.subheader(f"Adjust {current_var}")
-
-base_defaults = {
-    "Nitrogen (N)": 90.0,
-    "Phosphorus (P)": 40.0,
-    "Potassium (K)": 40.0,
-    "Temperature": 25.0,
-    "Humidity": 70.0,
-    "Soil pH": 6.5,
-    "Rainfall": 200.0
+scenario_structure = {
+    "Rainfall": [-30, -15, 0, 15, 30],       # %
+    "Temperature": [-3, -1, 0, 1, 3],        # °C
+    "Humidity": [-20, -10, 0, 10, 20],       # %
+    "Nitrogen": [-25, -10, 0, 10, 25]        # %
 }
 
-base_value = st.number_input(
-    f"Base {current_var}",
-    value=base_defaults[current_var]
-)
-
-percent_change = st.slider(
-    f"{current_var} Change (%)",
-    min_value=-50,
-    max_value=50,
-    value=0,
-    step=1
-)
-
-st.session_state.responses[current_var] = {
-    "base": base_value,
-    "percent": percent_change
-}
-
-# Navigation buttons
-col1, col2 = st.columns(2)
-
-with col1:
-    if st.session_state.step > 0:
-        if st.button("⬅ Back"):
-            st.session_state.step -= 1
-
-with col2:
-    if st.session_state.step < len(variables) - 1:
-        if st.button("Next ➡"):
-            st.session_state.step += 1
+variables = list(scenario_structure.keys())
 
 # ----------------------------------
-# FINAL PAGE – SIMULATION SETTINGS
+# SCREEN 1 – MARKET CONTEXT
 # ----------------------------------
 
-if st.session_state.step == len(variables) - 1:
+if st.session_state.screen == "context":
 
-    st.subheader("🌱 Additional Settings")
+    st.subheader("📍 Market Context Setup")
 
-    crop = st.selectbox("Crop Type", sorted(data["crop"].unique()))
-    fertilizer = st.selectbox("Fertilizer Type", sorted(data["fertilizer"].unique()))
-    simulations = st.selectbox("Number of Simulations", [500, 1000, 2000])
+    col1, col2 = st.columns(2)
+
+    with col1:
+        state = st.selectbox("Select State", sorted(data["State"].unique()))
+        crop = st.selectbox("Select Crop", sorted(data["Crop"].unique()))
+
+    with col2:
+        district = st.selectbox("Select District", sorted(data["District"].unique()))
+        fertilizer = st.selectbox("Fertilizer Type", sorted(data["Fertilizer"].unique()))
+
     price = st.number_input("Market Price (₹ per kg)", value=20)
 
-    ai_toggle = st.toggle("Enable AI Smart Irrigation Tool")
+    if st.button("🚀 Start Simulation"):
+        st.session_state.state = state
+        st.session_state.district = district
+        st.session_state.crop = crop
+        st.session_state.fertilizer = fertilizer
+        st.session_state.price = price
 
-    if ai_toggle:
-        ai_boost = st.slider("Expected Yield Boost (%)", 5, 25, 12)
-        tool_cost = st.number_input("AI Tool Cost (₹ per hectare)", value=3000)
-    else:
-        ai_boost = 0
-        tool_cost = 0
+        # Base defaults (can be dynamic later)
+        st.session_state.base_input = pd.DataFrame([{
+            "N": 90.0,
+            "P": 40.0,
+            "K": 40.0,
+            "temperature": 25.0,
+            "humidity": 70.0,
+            "ph": 6.5,
+            "rainfall": 200.0,
+            "crop": crop,
+            "fertilizer": fertilizer
+        }])
 
-    # ----------------------------------
-    # MONTE CARLO FUNCTION
-    # ----------------------------------
+        st.session_state.screen = "tiles"
+        st.rerun()
 
-    def monte_carlo(n_sim=1000):
+# ----------------------------------
+# SCREEN 2 – TILE SELECTION FLOW
+# ----------------------------------
+
+elif st.session_state.screen == "tiles":
+
+    st.progress((st.session_state.step + 1) / len(variables))
+
+    current_var = variables[st.session_state.step]
+    st.subheader(f"🧩 Select {current_var} Scenario")
+
+    options = scenario_structure[current_var]
+    cols = st.columns(5)
+
+    for i, value in enumerate(options):
+
+        label = f"{value}%" if current_var != "Temperature" else f"{value}°C"
+
+        if cols[i].button(label, key=f"{current_var}_{i}"):
+
+            st.session_state.scenario_choices[current_var] = value
+
+            if st.session_state.step < len(variables) - 1:
+                st.session_state.step += 1
+            else:
+                st.session_state.screen = "simulate"
+
+            st.rerun()
+
+# ----------------------------------
+# SCREEN 3 – RUN SIMULATION
+# ----------------------------------
+
+elif st.session_state.screen == "simulate":
+
+    st.subheader("⚙ Simulation Settings")
+
+    simulations = st.selectbox("Number of Simulations", [500, 1000, 2000])
+
+    def monte_carlo_with_tiles(n_sim=1000):
 
         results = []
 
         for _ in range(n_sim):
 
-            simulated = {}
+            simulated = st.session_state.base_input.copy()
 
-            for var in variables:
-                base = st.session_state.responses[var]["base"]
-                percent = st.session_state.responses[var]["percent"] / 100
-                adjusted = base * (1 + percent)
-                simulated[var.split(" ")[0]] = adjusted
+            for var, change in st.session_state.scenario_choices.items():
 
-            df = pd.DataFrame([{
-                "N": simulated["Nitrogen"],
-                "P": simulated["Phosphorus"],
-                "K": simulated["Potassium"],
-                "temperature": simulated["Temperature"],
-                "humidity": simulated["Humidity"],
-                "ph": simulated["Soil"],
-                "rainfall": simulated["Rainfall"],
-                "crop": crop,
-                "fertilizer": fertilizer
-            }])
+                if var == "Rainfall":
+                    simulated["rainfall"] *= (1 + change/100)
 
-            # Add Noise
-            df["rainfall"] = np.random.normal(df["rainfall"], df["rainfall"] * 0.10)
-            df["temperature"] = np.random.normal(df["temperature"], 1.5)
-            df["humidity"] = np.random.normal(df["humidity"], df["humidity"] * 0.05)
+                elif var == "Temperature":
+                    simulated["temperature"] += change
 
-            pred = pipeline.predict(df)[0]
+                elif var == "Humidity":
+                    simulated["humidity"] *= (1 + change/100)
+
+                elif var == "Nitrogen":
+                    simulated["N"] *= (1 + change/100)
+
+            # Add uncertainty
+            simulated["rainfall"] = np.random.normal(simulated["rainfall"], simulated["rainfall"] * 0.10)
+            simulated["temperature"] = np.random.normal(simulated["temperature"], 1.5)
+            simulated["humidity"] = np.random.normal(simulated["humidity"], simulated["humidity"] * 0.05)
+
+            pred = pipeline.predict(simulated)[0]
             results.append(pred)
 
         return np.array(results)
 
-    # ----------------------------------
-    # RUN SIMULATION
-    # ----------------------------------
-
     if st.button("🚀 Run Simulation"):
 
-        results = monte_carlo(simulations)
+        results = monte_carlo_with_tiles(simulations)
 
         mean_yield = np.mean(results)
         worst = np.percentile(results, 5)
         best = np.percentile(results, 95)
 
-        baseline_revenue = mean_yield * price
+        revenue = mean_yield * st.session_state.price
 
-        st.subheader("📈 Results")
+        st.subheader("📈 Simulation Results")
 
         col1, col2, col3 = st.columns(3)
         col1.metric("Expected Yield", round(mean_yield, 2))
         col2.metric("Worst Case (5%)", round(worst, 2))
         col3.metric("Best Case (95%)", round(best, 2))
 
-        st.metric("Expected Revenue (₹)", round(baseline_revenue, 2))
-
-        if ai_toggle:
-            intervention = results * (1 + ai_boost / 100)
-            mean_ai = np.mean(intervention)
-            revenue_ai = mean_ai * price
-            roi = (revenue_ai - baseline_revenue) / tool_cost
-
-            st.subheader("🤖 AI Tool Impact")
-
-            col4, col5 = st.columns(2)
-            col4.metric("AI Expected Yield", round(mean_ai, 2))
-            col5.metric("AI Revenue (₹)", round(revenue_ai, 2))
-            st.metric("Estimated ROI", round(roi, 2))
+        st.metric("Expected Revenue (₹)", round(revenue, 2))
 
         st.subheader("📊 Yield Distribution")
 
         fig, ax = plt.subplots()
-        ax.hist(results, bins=30, alpha=0.6, label="Baseline")
-
-        if ai_toggle:
-            ax.hist(intervention, bins=30, alpha=0.6, label="AI Tool")
-
+        ax.hist(results, bins=30, alpha=0.7)
         ax.set_xlabel("Predicted Yield")
         ax.set_ylabel("Frequency")
-        ax.legend()
 
         st.pyplot(fig)
+
+    if st.button("🔄 Reset Simulation"):
+        st.session_state.screen = "context"
+        st.session_state.step = 0
+        st.session_state.scenario_choices = {}
+        st.rerun()
