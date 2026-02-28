@@ -26,41 +26,57 @@ label {
     font-weight: 600 !important;
 }
 
+/* Normal text */
+p, span {
+    color: #145a32 !important;
+}
+
 /* ========================= */
-/* SELECTBOX FIXED STYLE     */
+/* METRIC FIX                */
 /* ========================= */
 
-/* Selected box */
+/* Metric label */
+div[data-testid="stMetricLabel"] {
+    color: #145a32 !important;
+    font-weight: 600 !important;
+}
+
+/* Metric value */
+div[data-testid="stMetricValue"] {
+    color: #0b3d0b !important;
+    font-size: 32px !important;
+    font-weight: 700 !important;
+}
+
+/* ========================= */
+/* SELECTBOX STYLE           */
+/* ========================= */
+
 div[data-baseweb="select"] > div {
     background-color: #2f2f2f !important;
     border: 2px solid #2e7d32 !important;
     border-radius: 8px !important;
 }
 
-/* Selected value text */
 div[data-baseweb="select"] span {
     color: white !important;
     font-weight: 500 !important;
 }
 
-/* Dropdown list background */
 div[role="listbox"] {
     background-color: #2f2f2f !important;
 }
 
-/* Dropdown options */
 div[role="option"] {
     background-color: #2f2f2f !important;
     color: white !important;
 }
 
-/* Hover option */
 div[role="option"]:hover {
     background-color: #2e7d32 !important;
     color: white !important;
 }
 
-/* Selected option */
 div[aria-selected="true"] {
     background-color: #2e7d32 !important;
     color: white !important;
@@ -298,6 +314,7 @@ elif st.session_state.screen == "simulate":
         st.session_state.step = 0
         st.session_state.shock_values = {}
         st.rerun()
+
 
 
 
