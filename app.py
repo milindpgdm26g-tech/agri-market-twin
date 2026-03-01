@@ -278,77 +278,109 @@ elif st.session_state.screen == "tiles":
         st.rerun()
         
 # ----------------------------------
-# STEP 4 – SIMULATION (1000 RUNS)
+# STEP 4 – PROBABILISTIC MONTE CARLO (1000 RUNS)
 # ----------------------------------
 
 elif st.session_state.screen == "simulate":
 
-    st.subheader("⚙ Running Monte Carlo Simulation (1000 Runs)")
+    st.subheader("⚙ Running Probabilistic Monte Carlo Simulation (1000 Runs)")
 
     results = []
 
+    baseline_yield = st.session_state.baseline_yield
+
     for _ in range(1000):
+
         simulated = st.session_state.base_input.copy()
 
+        # Apply scenario shocks
         simulated["temperature"] += st.session_state.shock_values["Temperature"]
         simulated["humidity"] *= (1 + st.session_state.shock_values["Humidity"] / 100)
         simulated["rainfall"] *= (1 + st.session_state.shock_values["Rainfall"] / 100)
         simulated["ph"] += st.session_state.shock_values["Soil pH"]
+
+        # ------------------------
+        # ADD TRUE UNCERTAINTY
+        # ------------------------
+
+        simulated["temperature"] = np.random.normal(
+            simulated["temperature"], 1.5
+        )
+
+        simulated["rainfall"] = np.random.normal(
+            simulated["rainfall"], simulated["rainfall"] * 0.10
+        )
+
+        simulated["humidity"] = np.random.normal(
+            simulated["humidity"], simulated["humidity"] * 0.05
+        )
+
+        simulated["ph"] = np.random.normal(
+            simulated["ph"], 0.2
+        )
 
         pred = pipeline.predict(simulated)[0]
         results.append(pred)
 
     results = np.array(results)
 
-    # Monte Carlo Metrics
+    # ------------------------
+    # RISK METRICS
+    # ------------------------
+
     mean_yield = np.mean(results)
-    best_case = np.percentile(results, 95)
+    std_yield = np.std(results)
+
     worst_case = np.percentile(results, 5)
+    best_case = np.percentile(results, 95)
 
-    baseline_yield = st.session_state.baseline_yield
+    prob_loss = np.mean(results < baseline_yield) * 100
 
-    # Revenue Calculations
+    # Revenue
     mean_revenue = mean_yield * st.session_state.area * st.session_state.price
-    best_revenue = best_case * st.session_state.area * st.session_state.price
     worst_revenue = worst_case * st.session_state.area * st.session_state.price
+    best_revenue = best_case * st.session_state.area * st.session_state.price
 
-    # Store for comparison
+    # Store
     st.session_state.simulated_yield = mean_yield
     st.session_state.simulated_revenue = mean_revenue
     st.session_state.best_case = best_case
     st.session_state.worst_case = worst_case
     st.session_state.best_revenue = best_revenue
     st.session_state.worst_revenue = worst_revenue
+    st.session_state.volatility = std_yield
+    st.session_state.prob_loss = prob_loss
 
-    st.subheader("📊 Monte Carlo Results")
+    # ------------------------
+    # DISPLAY RESULTS
+    # ------------------------
+
+    st.subheader("📊 Monte Carlo Risk Results")
 
     col1, col2, col3 = st.columns(3)
 
-    col1.metric(
-        "Worst Case Yield (5%)",
-        round(worst_case, 2),
-        round(worst_case - baseline_yield, 2)
-    )
-
-    col2.metric(
-        "Base Case Yield (Mean)",
-        round(mean_yield, 2),
-        round(mean_yield - baseline_yield, 2)
-    )
-
-    col3.metric(
-        "Best Case Yield (95%)",
-        round(best_case, 2),
-        round(best_case - baseline_yield, 2)
-    )
+    col1.metric("Worst Case Yield (5%)", round(worst_case, 2))
+    col2.metric("Expected Yield (Mean)", round(mean_yield, 2))
+    col3.metric("Best Case Yield (95%)", round(best_case, 2))
 
     st.divider()
 
-    col4, col5, col6 = st.columns(3)
+    col4, col5 = st.columns(2)
 
-    col4.metric("Worst Case Revenue (₹)", round(worst_revenue, 2))
-    col5.metric("Base Case Revenue (₹)", round(mean_revenue, 2))
-    col6.metric("Best Case Revenue (₹)", round(best_revenue, 2))
+    col4.metric("Yield Volatility (Std Dev)", round(std_yield, 2))
+    col5.metric("Probability of Yield Loss", f"{round(prob_loss, 2)}%")
+
+    st.divider()
+
+    # Risk Level Classification
+    if prob_loss < 30:
+        risk_level = "🟢 Low Risk"
+    elif prob_loss < 60:
+        risk_level = "🟡 Moderate Risk"
+    else:
+        risk_level = "🔴 High Risk"
+
+    st.subheader(f"Overall Risk Level: {risk_level}")
 
     if st.button("📈 View Comparison", key="compare"):
         st.session_state.screen = "comparison"
@@ -360,7 +392,7 @@ elif st.session_state.screen == "simulate":
 
 elif st.session_state.screen == "comparison":
 
-    st.subheader("📊 Baseline vs Scenario Comparison")
+    st.subheader("📊 Baseline vs Probabilistic Scenario Comparison")
 
     baseline_yield = st.session_state.baseline_yield
     baseline_revenue = st.session_state.baseline_revenue
@@ -368,54 +400,51 @@ elif st.session_state.screen == "comparison":
     mean_yield = st.session_state.simulated_yield
     mean_revenue = st.session_state.simulated_revenue
 
-    best_case = st.session_state.best_case
     worst_case = st.session_state.worst_case
+    best_case = st.session_state.best_case
 
-    best_revenue = st.session_state.best_revenue
-    worst_revenue = st.session_state.worst_revenue
+    volatility = st.session_state.volatility
+    prob_loss = st.session_state.prob_loss
 
-    # Yield Changes
     yield_change = mean_yield - baseline_yield
     yield_percent = (yield_change / baseline_yield) * 100
 
-    # Revenue Changes
     revenue_change = mean_revenue - baseline_revenue
     revenue_percent = (revenue_change / baseline_revenue) * 100
 
-    st.markdown("### 🌾 Yield Comparison")
+    st.markdown("### 🌾 Yield Impact")
 
     col1, col2, col3 = st.columns(3)
 
     col1.metric("Baseline Yield", round(baseline_yield, 2))
-    col2.metric("Base Case Yield (Mean)", round(mean_yield, 2))
-    col3.metric(
-        "Yield Change",
-        round(yield_change, 2),
-        f"{round(yield_percent, 2)}%"
-    )
+    col2.metric("Expected Yield", round(mean_yield, 2))
+    col3.metric("Yield Change",
+                round(yield_change, 2),
+                f"{round(yield_percent, 2)}%")
 
     st.divider()
 
-    st.markdown("### 💰 Revenue Comparison")
+    st.markdown("### 💰 Revenue Impact")
 
     col4, col5, col6 = st.columns(3)
 
     col4.metric("Baseline Revenue (₹)", round(baseline_revenue, 2))
-    col5.metric("Base Case Revenue (₹)", round(mean_revenue, 2))
-    col6.metric(
-        "Revenue Change (₹)",
-        round(revenue_change, 2),
-        f"{round(revenue_percent, 2)}%"
-    )
+    col5.metric("Expected Revenue (₹)", round(mean_revenue, 2))
+    col6.metric("Revenue Change (₹)",
+                round(revenue_change, 2),
+                f"{round(revenue_percent, 2)}%")
 
     st.divider()
 
-    st.markdown("### 📉 Risk Spread (Monte Carlo Range)")
+    st.markdown("### 📉 Risk Summary")
 
-    col7, col8 = st.columns(2)
+    col7, col8, col9 = st.columns(3)
 
     col7.metric("Worst Case Yield (5%)", round(worst_case, 2))
     col8.metric("Best Case Yield (95%)", round(best_case, 2))
+    col9.metric("Probability of Loss", f"{round(prob_loss, 2)}%")
+
+    st.metric("Yield Volatility (Std Dev)", round(volatility, 2))
 
     if st.button("🔄 Restart Simulation", key="restart"):
         st.session_state.screen = "context"
@@ -427,3 +456,4 @@ elif st.session_state.screen == "comparison":
         }
         st.rerun()
         
+
