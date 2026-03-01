@@ -1,0 +1,24 @@
+State,Region,Temperature,Humidity,Rainfall
+Punjab,Majha,32,65,125
+Punjab,Doaba,30,60,120
+Punjab,Malwa,34,55,118
+Uttar Pradesh,Western UP,35,70,122
+Uttar Pradesh,Eastern UP,33,75,128
+Uttar Pradesh,Bundelkhand,37,45,115
+Maharashtra,Vidarbha,36,50,119
+Maharashtra,Marathwada,38,40,112
+Maharashtra,Western Maharashtra,29,80,130
+Karnataka,North Karnataka,34,55,117
+Karnataka,South Karnataka,28,78,126
+Tamil Nadu,Cauvery Delta,31,82,129
+Tamil Nadu,Western TN,33,60,121
+Tamil Nadu,Southern TN,35,58,116
+Madhya Pradesh,Malwa,30,68,124
+Madhya Pradesh,Baghelkhand,32,62,120
+Madhya Pradesh,Mahakoshal,31,72,127
+Rajasthan,Marwar,40,25,110
+Rajasthan,Mewar,36,35,114
+Rajasthan,Shekhawati,42,20,111
+Gujarat,Saurashtra,34,50,118
+Gujarat,Kutch,39,30,113
+Gujarat,Central Gujarat,33,65,123
