@@ -190,19 +190,88 @@ elif st.session_state.screen == "tiles":
 
     st.subheader("🧩 Scenario Selection")
 
-    st.session_state.shock_values["Temperature"] = st.number_input(
-        "Temperature Change (°C)", value=0, step=1)
+    # ---------------- TEMPERATURE ----------------
+    st.markdown("### 🌡 Temperature Change (°C)")
 
-    st.session_state.shock_values["Humidity"] = st.number_input(
-        "Humidity Change (%)", value=0, step=1)
+    if "custom_temp" not in st.session_state:
+        st.session_state.custom_temp = 0
 
-    st.session_state.shock_values["Rainfall"] = st.number_input(
-        "Rainfall Change (%)", value=0, step=1)
+    cols = st.columns(5)
+    for i, val in enumerate([-3, -1, 0, 1, 3]):
+        if cols[i].button(f"{val} °C", key=f"temp_{i}"):
+            st.session_state.custom_temp = val
 
-    st.session_state.shock_values["Soil pH"] = st.number_input(
-        "Soil pH Change", value=0.0, step=0.1)
+    st.number_input(
+        "Custom Temperature Change",
+        step=1,
+        key="custom_temp"
+    )
 
-    if st.button("🚀 Run Monte Carlo Simulation (1000 runs)"):
+    st.session_state.shock_values["Temperature"] = st.session_state.custom_temp
+    st.success(f"Selected Temperature Change: {st.session_state.custom_temp} °C")
+
+    # ---------------- HUMIDITY ----------------
+    st.markdown("### 💧 Humidity Change (%)")
+
+    if "custom_hum" not in st.session_state:
+        st.session_state.custom_hum = 0
+
+    cols = st.columns(5)
+    for i, val in enumerate([-20, -10, 0, 10, 20]):
+        if cols[i].button(f"{val}%", key=f"hum_{i}"):
+            st.session_state.custom_hum = val
+
+    st.number_input(
+        "Custom Humidity Change",
+        step=1,
+        key="custom_hum"
+    )
+
+    st.session_state.shock_values["Humidity"] = st.session_state.custom_hum
+    st.success(f"Selected Humidity Change: {st.session_state.custom_hum} %")
+
+    # ---------------- RAINFALL ----------------
+    st.markdown("### 🌧 Rainfall Change (%)")
+
+    if "custom_rain" not in st.session_state:
+        st.session_state.custom_rain = 0
+
+    cols = st.columns(5)
+    for i, val in enumerate([-30, -15, 0, 15, 30]):
+        if cols[i].button(f"{val}%", key=f"rain_{i}"):
+            st.session_state.custom_rain = val
+
+    st.number_input(
+        "Custom Rainfall Change",
+        step=1,
+        key="custom_rain"
+    )
+
+    st.session_state.shock_values["Rainfall"] = st.session_state.custom_rain
+    st.success(f"Selected Rainfall Change: {st.session_state.custom_rain} %")
+
+    # ---------------- SOIL PH ----------------
+    st.markdown("### 🧪 Soil pH Change")
+
+    if "custom_ph" not in st.session_state:
+        st.session_state.custom_ph = 0.0
+
+    cols = st.columns(5)
+    for i, val in enumerate([-1, -0.5, 0, 0.5, 1]):
+        if cols[i].button(f"{val} pH", key=f"ph_{i}"):
+            st.session_state.custom_ph = val
+
+    st.number_input(
+        "Custom Soil pH Change",
+        step=0.1,
+        key="custom_ph"
+    )
+
+    st.session_state.shock_values["Soil pH"] = st.session_state.custom_ph
+    st.success(f"Selected Soil pH Change: {st.session_state.custom_ph}")
+
+    # RUN SIMULATION
+    if st.button("🚀 Run Monte Carlo Simulation (1000 runs)", key="run_sim"):
         st.session_state.screen = "simulate"
         st.rerun()
 
@@ -303,3 +372,4 @@ elif st.session_state.screen == "comparison":
     if st.button("🔄 Restart Simulation"):
         st.session_state.screen = "context"
         st.rerun()
+
