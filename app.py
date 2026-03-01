@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-import matplotlib.pyplot as plt
 
 # ----------------------------------
 # PAGE CONFIG + STYLE
@@ -13,20 +12,17 @@ st.set_page_config(page_title="AgriMarket Twin", layout="wide")
 st.markdown("""
 <style>
 .stApp { background-color: #e8f5e9; }
-
 h1 { color: #145a32 !important; font-weight: 700; }
 h2, h3 { color: #1b5e20 !important; }
-
 label { color: #145a32 !important; font-weight: 600 !important; }
 
 div[data-testid="stMetricLabel"] {
     color: #145a32 !important;
     font-weight: 600 !important;
 }
-
 div[data-testid="stMetricValue"] {
     color: #0b3d0b !important;
-    font-size: 32px !important;
+    font-size: 30px !important;
     font-weight: 700 !important;
 }
 
@@ -35,12 +31,7 @@ div[data-baseweb="select"] > div {
     border: 2px solid #2e7d32 !important;
     border-radius: 8px !important;
 }
-
 div[data-baseweb="select"] span { color: white !important; }
-
-div[role="listbox"] { background-color: #2f2f2f !important; }
-div[role="option"] { background-color: #2f2f2f !important; color: white !important; }
-div[role="option"]:hover { background-color: #2e7d32 !important; }
 
 .stButton > button {
     background-color: #2e7d32 !important;
@@ -49,9 +40,9 @@ div[role="option"]:hover { background-color: #2e7d32 !important; }
     height: 3em !important;
     font-weight: 600 !important;
 }
-
-.stButton > button * { color: white !important; }
-.stButton > button:hover { background-color: #145a32 !important; }
+.stButton > button:hover {
+    background-color: #145a32 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -70,19 +61,28 @@ soil_data.columns = soil_data.columns.str.strip()
 weather_data.columns = weather_data.columns.str.strip()
 
 # ----------------------------------
-# SESSION STATE INIT
+# SAFE SESSION STATE INIT
 # ----------------------------------
 
-if "screen" not in st.session_state:
-    st.session_state.screen = "context"
-
-if "shock_values" not in st.session_state:
-    st.session_state.shock_values = {
+defaults = {
+    "screen": "context",
+    "shock_values": {
         "Temperature": 0,
         "Humidity": 0,
         "Rainfall": 0,
         "Soil pH": 0
-    }
+    },
+    "volatility": 0,
+    "prob_loss": 0,
+    "best_case": 0,
+    "worst_case": 0,
+    "best_revenue": 0,
+    "worst_revenue": 0
+}
+
+for key, value in defaults.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 # ----------------------------------
 # STEP 1 – BASELINE INPUT
@@ -141,7 +141,7 @@ if st.session_state.screen == "context":
         rainfall = st.number_input("Rainfall (mm)", value=rainfall, step=1)
         ph = st.number_input("Soil pH", value=ph, step=0.1)
 
-    if st.button("📊 Predict Baseline Yield", key="baseline_btn"):
+    if st.button("📊 Predict Baseline Yield"):
 
         base_input = pd.DataFrame([{
             "N": N, "P": P, "K": K,
@@ -160,7 +160,6 @@ if st.session_state.screen == "context":
         st.session_state.baseline_revenue = baseline_yield * area * price
         st.session_state.area = area
         st.session_state.price = price
-
         st.session_state.screen = "baseline_result"
         st.rerun()
 
@@ -173,14 +172,13 @@ elif st.session_state.screen == "baseline_result":
     st.subheader("📊 Baseline Prediction")
 
     col1, col2, col3 = st.columns(3)
-
     col1.metric("Baseline Yield", round(st.session_state.baseline_yield, 2))
     col2.metric("Baseline Production",
                 round(st.session_state.baseline_yield * st.session_state.area, 2))
     col3.metric("Baseline Revenue (₹)",
                 round(st.session_state.baseline_revenue, 2))
 
-    if st.button("🚀 Proceed to Scenario Simulation", key="to_tiles"):
+    if st.button("🚀 Proceed to Scenario Simulation"):
         st.session_state.screen = "tiles"
         st.rerun()
 
@@ -192,197 +190,74 @@ elif st.session_state.screen == "tiles":
 
     st.subheader("🧩 Scenario Selection")
 
-    # ---------------- TEMPERATURE ----------------
-    st.markdown("### 🌡 Temperature Change (°C)")
+    st.session_state.shock_values["Temperature"] = st.number_input(
+        "Temperature Change (°C)", value=0, step=1)
 
-    if "custom_temp" not in st.session_state:
-        st.session_state.custom_temp = 0
+    st.session_state.shock_values["Humidity"] = st.number_input(
+        "Humidity Change (%)", value=0, step=1)
 
-    cols = st.columns(5)
-    for i, val in enumerate([-3, -1, 0, 1, 3]):
-        if cols[i].button(f"{val} °C", key=f"temp_{i}"):
-            st.session_state.custom_temp = val
+    st.session_state.shock_values["Rainfall"] = st.number_input(
+        "Rainfall Change (%)", value=0, step=1)
 
-    st.number_input(
-        "Custom Temperature Change",
-        step=1,
-        key="custom_temp"
-    )
+    st.session_state.shock_values["Soil pH"] = st.number_input(
+        "Soil pH Change", value=0.0, step=0.1)
 
-    st.session_state.shock_values["Temperature"] = st.session_state.custom_temp
-    st.success(f"Selected Temperature Change: {st.session_state.custom_temp} °C")
-
-    # ---------------- HUMIDITY ----------------
-    st.markdown("### 💧 Humidity Change (%)")
-
-    if "custom_hum" not in st.session_state:
-        st.session_state.custom_hum = 0
-
-    cols = st.columns(5)
-    for i, val in enumerate([-20, -10, 0, 10, 20]):
-        if cols[i].button(f"{val}%", key=f"hum_{i}"):
-            st.session_state.custom_hum = val
-
-    st.number_input(
-        "Custom Humidity Change",
-        step=1,
-        key="custom_hum"
-    )
-
-    st.session_state.shock_values["Humidity"] = st.session_state.custom_hum
-    st.success(f"Selected Humidity Change: {st.session_state.custom_hum} %")
-
-    # ---------------- RAINFALL ----------------
-    st.markdown("### 🌧 Rainfall Change (%)")
-
-    if "custom_rain" not in st.session_state:
-        st.session_state.custom_rain = 0
-
-    cols = st.columns(5)
-    for i, val in enumerate([-30, -15, 0, 15, 30]):
-        if cols[i].button(f"{val}%", key=f"rain_{i}"):
-            st.session_state.custom_rain = val
-
-    st.number_input(
-        "Custom Rainfall Change",
-        step=1,
-        key="custom_rain"
-    )
-
-    st.session_state.shock_values["Rainfall"] = st.session_state.custom_rain
-    st.success(f"Selected Rainfall Change: {st.session_state.custom_rain} %")
-
-    # ---------------- SOIL PH ----------------
-    st.markdown("### 🧪 Soil pH Change")
-
-    if "custom_ph" not in st.session_state:
-        st.session_state.custom_ph = 0.0
-
-    cols = st.columns(5)
-    for i, val in enumerate([-1, -0.5, 0, 0.5, 1]):
-        if cols[i].button(f"{val} pH", key=f"ph_{i}"):
-            st.session_state.custom_ph = val
-
-    st.number_input(
-        "Custom Soil pH Change",
-        step=0.1,
-        key="custom_ph"
-    )
-
-    st.session_state.shock_values["Soil pH"] = st.session_state.custom_ph
-    st.success(f"Selected Soil pH Change: {st.session_state.custom_ph}")
-
-    # RUN SIMULATION
-    if st.button("🚀 Run Monte Carlo Simulation (1000 runs)", key="run_sim"):
+    if st.button("🚀 Run Monte Carlo Simulation (1000 runs)"):
         st.session_state.screen = "simulate"
         st.rerun()
-        
+
 # ----------------------------------
-# STEP 4 – PROBABILISTIC MONTE CARLO (1000 RUNS)
+# STEP 4 – PROBABILISTIC MONTE CARLO
 # ----------------------------------
 
 elif st.session_state.screen == "simulate":
 
-    st.subheader("⚙ Running Probabilistic Monte Carlo Simulation (1000 Runs)")
+    st.subheader("⚙ Running Probabilistic Monte Carlo Simulation")
 
     results = []
-
     baseline_yield = st.session_state.baseline_yield
 
     for _ in range(1000):
-
         simulated = st.session_state.base_input.copy()
 
-        # Apply scenario shocks
         simulated["temperature"] += st.session_state.shock_values["Temperature"]
         simulated["humidity"] *= (1 + st.session_state.shock_values["Humidity"] / 100)
         simulated["rainfall"] *= (1 + st.session_state.shock_values["Rainfall"] / 100)
         simulated["ph"] += st.session_state.shock_values["Soil pH"]
 
-        # ------------------------
-        # ADD TRUE UNCERTAINTY
-        # ------------------------
+        simulated["temperature"] = np.random.normal(simulated["temperature"], 1.5)
+        simulated["rainfall"] = np.random.normal(simulated["rainfall"], simulated["rainfall"] * 0.10)
+        simulated["humidity"] = np.random.normal(simulated["humidity"], simulated["humidity"] * 0.05)
+        simulated["ph"] = np.random.normal(simulated["ph"], 0.2)
 
-        simulated["temperature"] = np.random.normal(
-            simulated["temperature"], 1.5
-        )
-
-        simulated["rainfall"] = np.random.normal(
-            simulated["rainfall"], simulated["rainfall"] * 0.10
-        )
-
-        simulated["humidity"] = np.random.normal(
-            simulated["humidity"], simulated["humidity"] * 0.05
-        )
-
-        simulated["ph"] = np.random.normal(
-            simulated["ph"], 0.2
-        )
-
-        pred = pipeline.predict(simulated)[0]
-        results.append(pred)
+        results.append(pipeline.predict(simulated)[0])
 
     results = np.array(results)
 
-    # ------------------------
-    # RISK METRICS
-    # ------------------------
-
     mean_yield = np.mean(results)
     std_yield = np.std(results)
-
     worst_case = np.percentile(results, 5)
     best_case = np.percentile(results, 95)
-
     prob_loss = np.mean(results < baseline_yield) * 100
 
-    # Revenue
     mean_revenue = mean_yield * st.session_state.area * st.session_state.price
-    worst_revenue = worst_case * st.session_state.area * st.session_state.price
-    best_revenue = best_case * st.session_state.area * st.session_state.price
 
-    # Store
     st.session_state.simulated_yield = mean_yield
     st.session_state.simulated_revenue = mean_revenue
     st.session_state.best_case = best_case
     st.session_state.worst_case = worst_case
-    st.session_state.best_revenue = best_revenue
-    st.session_state.worst_revenue = worst_revenue
     st.session_state.volatility = std_yield
     st.session_state.prob_loss = prob_loss
 
-    # ------------------------
-    # DISPLAY RESULTS
-    # ------------------------
-
-    st.subheader("📊 Monte Carlo Risk Results")
-
     col1, col2, col3 = st.columns(3)
+    col1.metric("Worst Case (5%)", round(worst_case, 2))
+    col2.metric("Expected Yield", round(mean_yield, 2))
+    col3.metric("Best Case (95%)", round(best_case, 2))
 
-    col1.metric("Worst Case Yield (5%)", round(worst_case, 2))
-    col2.metric("Expected Yield (Mean)", round(mean_yield, 2))
-    col3.metric("Best Case Yield (95%)", round(best_case, 2))
+    st.metric("Volatility (Std Dev)", round(std_yield, 2))
+    st.metric("Probability of Loss", f"{round(prob_loss, 2)}%")
 
-    st.divider()
-
-    col4, col5 = st.columns(2)
-
-    col4.metric("Yield Volatility (Std Dev)", round(std_yield, 2))
-    col5.metric("Probability of Yield Loss", f"{round(prob_loss, 2)}%")
-
-    st.divider()
-
-    # Risk Level Classification
-    if prob_loss < 30:
-        risk_level = "🟢 Low Risk"
-    elif prob_loss < 60:
-        risk_level = "🟡 Moderate Risk"
-    else:
-        risk_level = "🔴 High Risk"
-
-    st.subheader(f"Overall Risk Level: {risk_level}")
-
-    if st.button("📈 View Comparison", key="compare"):
+    if st.button("📈 View Comparison"):
         st.session_state.screen = "comparison"
         st.rerun()
 
@@ -392,19 +267,13 @@ elif st.session_state.screen == "simulate":
 
 elif st.session_state.screen == "comparison":
 
-    st.subheader("📊 Baseline vs Probabilistic Scenario Comparison")
+    st.subheader("📊 Baseline vs Scenario Comparison")
 
     baseline_yield = st.session_state.baseline_yield
-    baseline_revenue = st.session_state.baseline_revenue
-
     mean_yield = st.session_state.simulated_yield
+
+    baseline_revenue = st.session_state.baseline_revenue
     mean_revenue = st.session_state.simulated_revenue
-
-    worst_case = st.session_state.worst_case
-    best_case = st.session_state.best_case
-
-    volatility = st.session_state.volatility
-    prob_loss = st.session_state.prob_loss
 
     yield_change = mean_yield - baseline_yield
     yield_percent = (yield_change / baseline_yield) * 100
@@ -412,48 +281,25 @@ elif st.session_state.screen == "comparison":
     revenue_change = mean_revenue - baseline_revenue
     revenue_percent = (revenue_change / baseline_revenue) * 100
 
-    st.markdown("### 🌾 Yield Impact")
-
     col1, col2, col3 = st.columns(3)
-
     col1.metric("Baseline Yield", round(baseline_yield, 2))
     col2.metric("Expected Yield", round(mean_yield, 2))
-    col3.metric("Yield Change",
-                round(yield_change, 2),
+    col3.metric("Yield Change", round(yield_change, 2),
                 f"{round(yield_percent, 2)}%")
 
     st.divider()
 
-    st.markdown("### 💰 Revenue Impact")
-
     col4, col5, col6 = st.columns(3)
-
-    col4.metric("Baseline Revenue (₹)", round(baseline_revenue, 2))
-    col5.metric("Expected Revenue (₹)", round(mean_revenue, 2))
-    col6.metric("Revenue Change (₹)",
-                round(revenue_change, 2),
+    col4.metric("Baseline Revenue", round(baseline_revenue, 2))
+    col5.metric("Expected Revenue", round(mean_revenue, 2))
+    col6.metric("Revenue Change", round(revenue_change, 2),
                 f"{round(revenue_percent, 2)}%")
 
     st.divider()
 
-    st.markdown("### 📉 Risk Summary")
+    st.metric("Probability of Loss", f"{round(st.session_state.prob_loss, 2)}%")
+    st.metric("Yield Volatility", round(st.session_state.volatility, 2))
 
-    col7, col8, col9 = st.columns(3)
-
-    col7.metric("Worst Case Yield (5%)", round(worst_case, 2))
-    col8.metric("Best Case Yield (95%)", round(best_case, 2))
-    col9.metric("Probability of Loss", f"{round(prob_loss, 2)}%")
-
-    st.metric("Yield Volatility (Std Dev)", round(volatility, 2))
-
-    if st.button("🔄 Restart Simulation", key="restart"):
+    if st.button("🔄 Restart Simulation"):
         st.session_state.screen = "context"
-        st.session_state.shock_values = {
-            "Temperature": 0,
-            "Humidity": 0,
-            "Rainfall": 0,
-            "Soil pH": 0
-        }
         st.rerun()
-        
-
